@@ -15,6 +15,10 @@ use Inertia\Inertia;
 | contains the "web" middleware group. Now create something great!
 |
 */
+// FIles routes
+Route::get('file-upload', [FileController::class, 'index'])->name('file.upload');
+Route::post('file-upload', [FileController::class, 'store'])->name('file.upload.store');
+Route::get('datos', [FileController::class, 'datos'])->name('file.datos');
 
 Route::get('/', function () {
     return Inertia::render('Welcome', [
