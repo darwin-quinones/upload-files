@@ -1,5 +1,5 @@
 import React from 'react';
-import Authenticated from '@/Layouts/AuthenticatedLayout.jsx'; 
+import Authenticated from '@/Layouts/AuthenticatedLayout.jsx';
 // import { Head, useForm, usePage, Link } from '../../../node_modules/@inertiajs/react';
 import { Head, useForm, usePage, Link } from '@inertiajs/react';
 
@@ -13,7 +13,7 @@ export default function Dashboard(props) {
 
     function handleSubmit(e) {
         e.preventDefault();
-        post(route("file.upload.store"));
+        post(route("file.register"));
 
         setData("title", "")
         setData("file", null)
@@ -62,7 +62,7 @@ export default function Dashboard(props) {
                                             }
                                         />
                                         <span className="text-red-600">
-                                            {errors.file}
+
                                         </span>
                                     </div>
                                 </div>

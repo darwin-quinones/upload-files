@@ -21,8 +21,8 @@ use App\Http\Controllers\FileController;
 
 // FIles routes
 Route::get('file-upload', [FileController::class, 'index'])->name('file.upload');
-Route::post('file-upload', [FileController::class, 'store'])->name('file.upload.store');
-Route::get('datos', [FileController::class, 'datos'])->name('file.datos');
+// Route::post('file-upload', [FileController::class, 'store'])->name('file.upload.store');
+Route::post('/file-upload', [FileController::class, 'fileRegister'])->name('file.register');
 
 Route::get('/', function () {
     return Inertia::render('Welcome', [
