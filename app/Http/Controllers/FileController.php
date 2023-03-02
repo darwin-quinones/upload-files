@@ -10,6 +10,8 @@ use App\Models\File;
 use App\Models\ArchivosCargadosCatastro;
 use App\Models\CatastroAgosto2022_2;
 use App\Models\Tarifa;
+use App\Models\Corregimiento;
+use App\Models\EstadoSuministro;
 
 
 
@@ -34,100 +36,186 @@ class FileController extends Controller
      */
     public function fileRegister(Request $request)
     {
-        $tempFile = $request->file('file');
-        $filename = $tempFile->getClientOriginalName();
-        $filepath = public_path('uploads/');
-        $file = $filepath . $filename;
-
-        /**
-         ** upload file in public directory
-         *
-         */
-
-        move_uploaded_file($tempFile, $file);
-        $fecha_creacion = date('Y-m-d');
-
-        // INSTANCES
-        $result = new ArchivosCargadosCatastro();
-        $catastro = new CatastroAgosto2022_2();
-        $tarifa = new Tarifa();
-
-        $query_ruta = DB::table('archivos_cargados_catastro_2')->where('RUTA', '=', $filename)->first();
-
-        if ($query_ruta) {
-            return ["msj" => "El archivo ya existe", "file" => $file, "Status" => false];
-        } else {
-            $result->ANO_FACTURA = '2022';
-            $result->ID_MES_FACTURA = '08';
-            $result->MES_FACTURA = 'AGOSTO';
-            $result->DEPARTAMENTO = 'BOLIVAR';
-            $result->MUNICIPIO = 'ARJONA';
-            $result->OPERADOR_RED = 'AFINIA';
-            $result->RUTA = $filename;
-            $result->FECHA_CREACION = $fecha_creacion;
-            $result->ID_USUARIO = 1;
-            $result->save();
-
-            $query_filename = DB::table('archivos_cargados_catastro_2')->where('RUTA', '=', $filename)->first();
-
-            $id_tabla_ruta = $query_filename->ID_TABLA;
-
-            $data = file($file);
-            $row = array();
-            $i = 0;
-            foreach ($data as $line) {
-                $row[] = explode('|', $line);
-                $query_tipo_servicio = DB::table('tipo_servicios_2')->where('COD_TIPO_SERVICIO', '=', trim($row[$i][0]))->select('ID_TIPO_SERVICIO')->first();
-
-                $nombre_tarifa = strtoupper(str_replace(" ", "_", trim($row[$i][3])));
-                $query_tarifa = DB::table('tarifas_2')->where('NOMBRE', '=', $nombre_tarifa)->select('ID_TARIFA')->first();
 
 
-                $nombre_propietario = strtoupper(trim(str_replace("'", "", $row[$i][6])));
-                $direccion_vivienda = strtoupper(trim(str_replace("'", "", $row[$i][7])));
-                $consumo_facturado = trim(str_replace(",", ".", $row[$i][8]));
+        $k = 0;
+        $files = $request->files;
+        if ($request->hasFile('files')) {
+            foreach ($files as $archivo) {
 
-                $municipio =  strtoupper(str_replace("_", " ", trim($row[$i][9])));
-                $query_municipio = DB::table('municipios_2')->where('NOMBRE', '=', $municipio)->first();
-                $id_departamento = $query_municipio->ID_DEPARTAMENTO;
-                $id_municipio = $query_municipio->ID_MUNICIPIO;
+                // get the original file name
+                $filename = $archivo->getClientOriginalName();
+                // $filename = $request->file_name->getClientOriginalName();
+                $tempFile = $archivo;
+                // $filename = $tempFile->getClientOriginalName();
+                $filepath = public_path('uploads/');
+                $file = $filepath . $filename;
 
-                $corregimiento = strtoupper(trim(utf8_encode($row[$i][10])));
-                $query_corregimiento = DB::table('corregimientos_2')->where('ID_DEPARTAMENTO', '=', $id_departamento)->where('ID_MUNICIPIO', '=', $id_municipio)->where('NOMBRE', '=', $corregimiento)->first();
-                $id_corregimiento = $query_corregimiento->ID_TABLA;
+                //$iniciales_archivo = substr($filename, 0, 4);
 
-                $estado_suministro = strtoupper(trim($row[$i][13]));
-                $query_estado_suministro = DB::table('estados_suministro_2')->where('NOMBRE', '=', $estado_suministro)->first();
-                $id_estado_suministro = $query_estado_suministro->ID_ESTADO_SUMINISTRO;
 
-                $catastro->ID_TIPO_SERVICIO = $query_tipo_servicio->ID_TIPO_SERVICIO;
-                $catastro->ID_TARIFA = $query_tarifa->ID_TARIFA;
-                $catastro->NIC = $row[$i][4];
-                $catastro->NIS = $row[$i][5];
-                $catastro->NOMBRE_PROPIETARIO = $nombre_propietario;
-                $catastro->DIRECCION_VIVIENDA = $direccion_vivienda;
-                $catastro->CONSUMO_FACTURADO = $consumo_facturado;
-                $catastro->ID_COD_DPTO = $id_departamento;
-                $catastro->ID_COD_MPIO = $id_municipio;
-                $catastro->ID_COD_CORREG = $id_corregimiento;
-                $catastro->DEUDA_CORRIENTE = trim(str_replace(",", ".", $row[$i][11]));
-                $catastro->DEUDA_CUOTA = trim(str_replace(",", ".", $row[$i][12]));
-                $catastro->ID_ESTADO_SUMINISTRO = $id_estado_suministro;
-                $catastro->ANO_CATASTRO = '2022';
-                $catastro->MES_CATASTRO = '08';
-                $catastro->ID_TABLA_RUTA = $id_tabla_ruta;
-                $catastro->FECHA_CREACION = $fecha_creacion;
-                $catastro->ID_USUARIO = 1;
-                $catastro->OPERADOR_RED = 'AFINIA';
-                //echo($query_tipo_servicio[0])  ;
-                $catastro->save();
-                return $query_tipo_servicio;
-                // return $query_tipo_servicio;
 
+                //                     /**
+                //                      ** upload file in public directory
+                //                      */
+
+                move_uploaded_file($tempFile, $file);
+                $fecha_creacion = date('Y-m-d');
+
+                // INSTANCES
+                $result = new ArchivosCargadosCatastro();
+
+
+                $query_ruta = DB::table('archivos_cargados_catastro_2')->where('RUTA', '=', $filename)->first();
+
+                // if ($query_ruta) {
+                //     return ["msj" => "El archivo ya existe", "file" => $file, "Status" => false];
+                // } else {
+
+                $operador_red = 'AFINIA';
+                // SE GUARDA EL ARCHIVO
+                $result->ANO_FACTURA = '2022';
+                $result->ID_MES_FACTURA = '08';
+                $result->MES_FACTURA = 'AGOSTO';
+                $result->DEPARTAMENTO = 'BOLIVAR';
+                $result->MUNICIPIO = 'ARJONA';
+                $result->OPERADOR_RED = $operador_red;
+                $result->RUTA = $filename;
+                $result->FECHA_CREACION = $fecha_creacion;
+                $result->ID_USUARIO = 1;
+                $result->save();
+
+                $query_filename = DB::table('archivos_cargados_catastro_2')->where('RUTA', '=', $filename)->first();
+
+                $id_tabla_ruta = $query_filename->ID_TABLA;
+
+                $total_deuda_corriente = 0;
+                $total_deuda_cuota = 0;
+                $data = file($file);
+                $row = array();
+                $i = 0;
+                //$query_max_id_corregimiento = Corregimiento::where('ID_DEPARTAMENTO', '=', 1)->where('ID_MUNICIPIO', '=', 4)->max('ID_CORREGIMIENTO');
+                foreach ($data as $lines) {
+
+                    // INSTANCES
+                    $catastro = new CatastroAgosto2022_2();
+                    $corregimiento = new Corregimiento();
+                    $suministro = new EstadoSuministro();
+
+                    $row[] = explode('|', $lines);
+                    $query_tipo_servicio = DB::table('tipo_servicios_2')->where('COD_TIPO_SERVICIO', '=', trim($row[$i][0]))->select('ID_TIPO_SERVICIO')->first();
+
+                    $nombre_tarifa = strtoupper(str_replace(" ", "_", trim($row[$i][3])));
+                    $query_tarifa = DB::table('tarifas_2')->where('NOMBRE', '=', $nombre_tarifa)->select('ID_TARIFA')->first();
+                    $id_tarifa = $query_tarifa->ID_TARIFA;
+                    $nic = $row[$i][4];
+                    $nis = $row[$i][5];
+                    $nombre_propietario = strtoupper(trim(str_replace("'", "", $row[$i][6])));
+                    $direccion_vivienda = strtoupper(trim(str_replace("'", "", $row[$i][7])));
+                    $consumo_facturado = trim(str_replace(",", ".", $row[$i][8]));
+
+                    $municipio =  strtoupper(str_replace("_", " ", trim($row[$i][9])));
+                    $query_municipio = DB::table('municipios_2')->where('NOMBRE', '=', $municipio)->first();
+                    $id_departamento = $query_municipio->ID_DEPARTAMENTO;
+                    $id_municipio = $query_municipio->ID_MUNICIPIO;
+
+                    $nombre_corregimiento = strtoupper(trim(utf8_encode($row[$i][10])));
+                    $query_corregimiento = DB::table('corregimientos_2')->where('ID_DEPARTAMENTO', '=', $id_departamento)->where('ID_MUNICIPIO', '=', $id_municipio)->where('NOMBRE', '=', $nombre_corregimiento)->first();
+
+                    // SI NO ENCUENTRA CORREGIMIENTO LO AGREGAMOS
+                    if ($query_corregimiento) {
+                        $id_corregimiento = $query_corregimiento->ID_TABLA;
+                    } else {
+                        $query_max_id_corregimiento = Corregimiento::where('ID_DEPARTAMENTO', '=', $id_departamento)->where('ID_MUNICIPIO', '=', $id_municipio)->max('ID_CORREGIMIENTO');
+                        $id_max_corregimiento = $query_max_id_corregimiento + 1;
+
+                        // GUARDO UN NUEVO CORREGIMIENTO
+                        $corregimiento->ID_DEPARTAMENTO = $id_departamento;
+                        $corregimiento->ID_MUNICIPIO = $id_municipio;
+                        $corregimiento->ID_CORREGIMIENTO = $id_max_corregimiento;
+                        $corregimiento->NOMBRE = $nombre_corregimiento;
+                        $corregimiento->save();
+
+                        // CONSULTAR EL NUEVO CORREGIMIENTO
+                        $query_new_id_corregimiento = Corregimiento::max('ID_TABLA');
+                        $id_corregimiento = $query_new_id_corregimiento;
+                        // NOTA: FALTA RETORNAR CORREGIMIENTO AGREGADO
+                    }
+                    $deuda_corriente = trim(str_replace(",", ".", $row[$i][11]));
+                    $deuda_cuota = trim(str_replace(",", ".", $row[$i][12]));
+
+                    $estado_suministro = strtoupper(trim($row[$i][13]));
+                    $query_estado_suministro = DB::table('estados_suministro_2')->where('NOMBRE', '=', $estado_suministro)->first();
+                    if ($query_estado_suministro) {
+                        $id_estado_suministro = $query_estado_suministro->ID_ESTADO_SUMINISTRO;
+                    } else {
+                        // SE GUARDA UN NUEVO ESTADO SUMINISTRO
+                        $suministro->NOMBRE = $estado_suministro;
+                        $suministro->save();
+
+                        $query_new_estado_suministro = EstadoSuministro::where('NOMBRE', '=', $estado_suministro)->first();
+                        $id_estado_suministro = $query_new_estado_suministro->ID_ESTADO_SUMINISTRO;
+                    }
+
+
+                    $total_deuda_corriente = $total_deuda_corriente + $deuda_corriente;
+                    $total_deuda_cuota = $total_deuda_cuota + $deuda_cuota;
+
+                    $catastro->ID_TIPO_SERVICIO = $query_tipo_servicio->ID_TIPO_SERVICIO;
+                    $catastro->ID_TARIFA = $id_tarifa;
+                    $catastro->NIC = $nic;
+                    $catastro->NIS = $nis;
+                    $catastro->NOMBRE_PROPIETARIO = $nombre_propietario;
+                    $catastro->DIRECCION_VIVIENDA = $direccion_vivienda;
+                    $catastro->CONSUMO_FACTURADO = $consumo_facturado;
+                    $catastro->ID_COD_DPTO = $id_departamento;
+                    $catastro->ID_COD_MPIO = $id_municipio;
+                    $catastro->ID_COD_CORREG = $id_corregimiento;
+                    $catastro->DEUDA_CORRIENTE = $deuda_corriente;
+                    $catastro->DEUDA_CUOTA = $deuda_cuota;
+                    $catastro->ID_ESTADO_SUMINISTRO = $id_estado_suministro;
+                    $catastro->ANO_CATASTRO = '2022';
+                    $catastro->MES_CATASTRO = '08';
+                    $catastro->ID_TABLA_RUTA = $id_tabla_ruta;
+                    $catastro->FECHA_CREACION = $fecha_creacion;
+                    $catastro->ID_USUARIO = 1;
+                    $catastro->OPERADOR_RED = $operador_red;
+                    $catastro->save();
+
+                    $i++;
+                }
+                unlink($file);
+                // $query_totales = CatastroAgosto2022_2::select([
+                //     DB::raw('COUNT(*) AS TOTAL'),
+                //     DB::raw("SUM(DEUDA_CORRIENTE) AS DEUDA_CORRIENTE"),
+                //     DB::raw("SUM(DEUDA_CUOTA) AS DEUDA_CUOTA"),
+                // ])->where('ID_TABLA_RUTA', '=', $id_tabla_ruta)->get();
+
+                //$query_totales = CatastroAgosto2022_2::where('ID_TABLA_RUTA', '=', $id_tabla_ruta)->count('ID_TABLA')->sum('DEUDA_CORRIENTE')->sum('DEUDA_CUOTA');
+                // return $query_totales;
+
+
+                // }
+
+                $k++;
             }
-            unlink($file);
         }
 
+
+
+
+        // $total_archivos = 2;
+        // //return ['msj' => $total_archivos];
+        // $operador_red = 'AFINIA';
+
+        // switch ($operador_red) {
+        //     case 'AFINIA':
+
+        //         break;
+
+        // }
+
+        //return $query_max_id_corregimiento;
 
 
         // if ($result->save()) {
