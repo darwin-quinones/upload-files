@@ -38,11 +38,21 @@ class FileController extends Controller
     {
         //var_dump($request->files);
         //return $request->files;
+        function stripAccents($str)
+        {
+            return strtr(utf8_decode($str), utf8_decode('àáâãäçèéêëìíîïñòóôõöùúûüýÿÀÁÂÃÄÇÈÉÊËÌÍÎÏÑÒÓÔÕÖÙÚÛÜÝ'), 'aaaaaceeeeiiiinooooouuuuyyAAAAACEEEEIIIINOOOOOUUUUY');
+        }
+
+        header('Content-Type: text/html; charset=UTF-8');
+
+
         if ($request->files) {
             $k = 0;
             $files = $request->files;
             $operador_red = 'AFINIA';
             $mensajes = array();
+            $consultas = array();
+            $elementos = array();
             switch ($operador_red) {
                 case 'AFINIA':
                     foreach ($files as $archivo) {
@@ -68,7 +78,7 @@ class FileController extends Controller
                                 $query_ruta = DB::table('archivos_cargados_catastro_2')->where('RUTA', '=', $filename)->first();
 
                                 if ($query_ruta) {
-                                    $mensajes[] = ['mjs' => "El archivo ya existe", 'file' => $file];
+                                    $mensajes[] = ['mensaje' => "El archivo ya existe", 'file' => $file];
                                 } else {
 
 
@@ -112,11 +122,14 @@ class FileController extends Controller
                                         $id_tarifa = $query_tarifa->ID_TARIFA;
                                         $nic = $row[$i][4];
                                         $nis = $row[$i][5];
-                                        $nombre_propietario = strtoupper(trim(str_replace("'", "", $row[$i][6])));
-                                        $direccion_vivienda = strtoupper(trim(str_replace("'", "", $row[$i][7])));
+
+                                        $nombre_propietario = str_replace('?', 'N', utf8_decode(strtoupper(trim( str_replace(array("”", "#", ".", "'", ";", "/", "\\", "`"), "", stripAccents($row[$i][6])))))) ;
+                                        $direccion_vivienda = str_replace('?', 'N', utf8_decode(strtoupper(trim( str_replace(array("”", "#", ".", "'", ";", "/", "\\", "`"), "", stripAccents($row[$i][7]))))));
+
+
                                         $consumo_facturado = trim(str_replace(",", ".", $row[$i][8]));
 
-                                        $municipio =  strtoupper(str_replace("_", " ", trim($row[$i][9])));
+                                        $municipio =   strtoupper(str_replace("_", " ", trim($row[$i][9])));
                                         $query_municipio = DB::table('municipios_2')->where('NOMBRE', '=', $municipio)->first();
                                         $id_departamento = $query_municipio->ID_DEPARTAMENTO;
                                         $id_municipio = $query_municipio->ID_MUNICIPIO;
@@ -141,6 +154,7 @@ class FileController extends Controller
                                             // CONSULTAR EL NUEVO CORREGIMIENTO
                                             $query_new_id_corregimiento = Corregimiento::max('ID_TABLA');
                                             $id_corregimiento = $query_new_id_corregimiento;
+                                            $elementos[] = ['mensaje' => "Corregimiento agregado en la posición '". $i ."' " , 'elemento_agregado' =>  $nombre_corregimiento];
                                             // NOTA: FALTA RETORNAR CORREGIMIENTO AGREGADO
                                         }
                                         $deuda_corriente = trim(str_replace(",", ".", $row[$i][11]));
@@ -157,6 +171,7 @@ class FileController extends Controller
 
                                             $query_new_estado_suministro = EstadoSuministro::where('NOMBRE', '=', $estado_suministro)->first();
                                             $id_estado_suministro = $query_new_estado_suministro->ID_ESTADO_SUMINISTRO;
+                                            $elementos[] = ['mensaje' => "Estado suministro agregado en la posición '". $i ."' " , 'elemento_agregado' =>  $estado_suministro];
                                         }
 
 
@@ -188,10 +203,18 @@ class FileController extends Controller
                                     }
                                     // FIN FOREACH LINE
 
-                                    $mensajes[] = ['msj' => 'Archivo cargado con exito', 'file' => $file];
+                                    $consultas[] = CatastroAgosto2022_2::select([
+                                        DB::raw('COUNT(*) AS TOTAL'),
+                                        DB::raw("SUM(DEUDA_CORRIENTE) AS DEUDA_CORRIENTE"),
+                                        DB::raw("SUM(DEUDA_CUOTA) AS DEUDA_CUOTA"),
+                                    ])->where('ID_TABLA_RUTA', '=', $id_tabla_ruta)->get();
+
+                                    $mensajes[] = ['mensaje' => 'Archivo cargado con exito', 'file' => $file];
 
                                     unlink($file);
                                     $k++;
+
+
                                 }
                                 // FIN CALIDACION SI EXISTE ARCHIVO
                                 break;
@@ -206,15 +229,10 @@ class FileController extends Controller
 
                     }
                     // FIN FOREACH FILES
-                    $consulta;
-                    //array_push( "El archivo ya existe", $file);
-                    // return $mensajes[]
 
-                    return ["Resultado" => $consulta, "mensajes" => $mensajes];
+                    return ["resultado" => $consultas, "mensajes" => $mensajes, "elementos" => $elementos];
 
                     // ENVIO DE RESPUESTAS
-
-
 
                     break;
                 case 'AIR-E':
@@ -228,6 +246,9 @@ class FileController extends Controller
 
 
         }
+
+
+
     }
 
     /**
@@ -238,7 +259,7 @@ class FileController extends Controller
     public function store(Request $request)
     {
 
-        function stripAccents($str)
+        function stripAccent($str)
         {
             return strtr(utf8_decode($str), utf8_decode('àáâãäçèéêëìíîïñòóôõöùúûüýÿÀÁÂÃÄÇÈÉÊËÌÍÎÏÑÒÓÔÕÖÙÚÛÜÝ'), 'aaaaaceeeeiiiinooooouuuuyyAAAAACEEEEIIIINOOOOOUUUUY');
         }
