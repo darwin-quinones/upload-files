@@ -174,8 +174,8 @@ class FileController extends Controller
                                         $nic = $row[$i][4];
                                         $nis = $row[$i][5];
 
-                                        $nombre_propietario = str_replace('?', 'N', utf8_decode(strtoupper(trim(str_replace(array("”", "#", ".", "'", ";", "/", "\\", "`"), "", stripAccents($row[$i][6]))))));
-                                        $direccion_vivienda = str_replace('?', 'N', utf8_decode(strtoupper(trim(str_replace(array("”", "#", ".", "'", ";", "/", "\\", "`"), "", stripAccents($row[$i][7]))))));
+                                        $nombre_propietario = str_replace('?', 'N', utf8_decode(strtoupper(trim(str_replace(array("”", "#", ".", "'", ";", "/", "\\", "`", '"'), "", stripAccents($row[$i][6]))))));
+                                        $direccion_vivienda = str_replace('?', 'N', utf8_decode(strtoupper(trim(str_replace(array("”", "#", ".", "'", ";", "/", "\\", "`", '"'), "", stripAccents($row[$i][7]))))));
 
 
                                         $consumo_facturado = trim(str_replace(",", ".", $row[$i][8]));
@@ -229,9 +229,11 @@ class FileController extends Controller
                                         $total_deuda_corriente = $total_deuda_corriente + $deuda_corriente;
                                         $total_deuda_cuota = $total_deuda_cuota + $deuda_cuota;
 
-                                        $query_tipo_servicio = DB::table('tipo_servicios_2')->where('COD_TIPO_SERVICIO', '=', trim($row[$i][0]))->first();
+                                        $cod_tipo_servicio = trim(str_replace(array("”", "#", ".", "'", ";", "/", "\\", "`", '"'), "", stripAccents($row[$i][0])));
+
+                                        //echo ' cod: '  .  $cod_tipo_servicio . ' pos: '. $i . ' direccion_vivienda: '. $direccion_vivienda;
+                                        $query_tipo_servicio = DB::table('tipo_servicios_2')->where('COD_TIPO_SERVICIO', '=', $cod_tipo_servicio)->first();
                                         $id_tipo_servicio = $query_tipo_servicio->ID_TIPO_SERVICIO;
-                                        echo 'I_T_S: '. $id_tipo_servicio . ' P : ' . $row[$i];
                                         $catastro->ID_TIPO_SERVICIO = $id_tipo_servicio;
                                         $catastro->ID_TARIFA = $id_tarifa;
                                         $catastro->NIC = $nic;
