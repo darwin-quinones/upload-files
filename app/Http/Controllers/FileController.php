@@ -298,9 +298,9 @@ class FileController extends Controller
                                 $result = new ArchivosCargadosFacturacion();
                                 move_uploaded_file($tempFile, $file);
                                 $query_ruta = ArchivosCargadosFacturacion::where('RUTA', '=', $filename)->first();
-                                if ($query_ruta) {
-                                    $mensajes[] = ["mensaje" => "El archivo ya existe", "file" => $file];
-                                } else {
+                                // if ($query_ruta) {
+                                //     $mensajes[] = ["mensaje" => "El archivo ya existe", "file" => $file];
+                                // } else {
                                     switch ($mes_consolidado) {
                                         case "Enero":
                                             $id_mes = 1;
@@ -525,7 +525,7 @@ class FileController extends Controller
 
                                     unlink($file);
                                     $k++;
-                                }
+                                // }
                                 // FIN VALIDACION SI EXISTE EL ARCHIVO
                                 break;
                             case 'RECA':
