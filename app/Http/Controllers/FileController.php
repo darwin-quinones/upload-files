@@ -20,9 +20,18 @@ use App\Models\TarifaAire;
 use App\Models\Corregimiento;
 use App\Models\EstadoSuministro;
 use App\Models\Municipio;
+use App\Models\MunicipioVisita;
+use App\Models\TarifaElectrohuila;
 use App\Models\TipoCliente;
 use App\Models\TipoClienteAire;
+use App\Models\TipoClienteElectrohuila;
 use App\Models\TipoConceptoAire;
+
+// LIBRERIA PHP SPREADSHEET
+require '../vendor/autoload.php';
+
+use PhpOffice\PhpSpreadsheet\Spreadsheet;
+
 
 
 
@@ -49,6 +58,10 @@ class FileController extends Controller
     {
         //var_dump($request->files);
         //return $request->files;
+
+
+
+
         function stripAccents($str)
         {
             return strtr(utf8_decode($str), utf8_decode('àáâãäçèéêëìíîïñòóôõöùúûüýÿÀÁÂÃÄÇÈÉÊËÌÍÎÏÑÒÓÔÕÖÙÚÛÜÝ'), 'aaaaaceeeeiiiinooooouuuuyyAAAAACEEEEIIIINOOOOOUUUUY');
@@ -60,7 +73,7 @@ class FileController extends Controller
         if ($request->files) {
             $k = 0;
             $files = $request->files;
-            $cod_operador_red = '7';
+            $cod_operador_red = '8';
             $mensajes = array();
             $consultas = array();
             $elementos = array();
@@ -68,6 +81,307 @@ class FileController extends Controller
             switch ($cod_operador_red) {
                 case '8':
                     $operador_red = 'ELECTROUILA';
+                    foreach ($files as $archivo) {
+                        $filename = $archivo->getClientOriginalName();
+                        $tempFile = $archivo;
+                        $filepath = public_path('uploads/');
+                        $file = $filepath . $filename;
+
+                        $fecha_creacion = date('Y-m-d');
+                        $mes_consolidado = 'Agosto';
+
+                        $id_tipo_poblacion = 1;
+                        $ano_factura = '2022';
+                        $mes_factura = 'AGOSTO';
+                        $departamento = 'HUILA';
+                        $municipio = 'NEIVA';
+
+                        $total_deuda_corriente = 0;
+                        $total_deuda_cuota = 0;
+                        $total_importe_trans_reca = 0;
+                        $total_importe_trans_fact = 0;
+                        $valor_recibo = 0;
+                        $total_valor_recibo = 0;
+
+
+                        $query_ruta = DB::table('archivos_cargados_catastro_2')->where('RUTA', '=', $filename)->first();
+                        if ($query_ruta) {
+                            $mensajes[] = ["mensaje" => "El archivo ya existe", "file" => $file];
+                            break;
+                        }
+                        //INSTANCES
+                        $archivos_catastro = new ArchivosCargadosCatastro();
+                        $archivos_facturacion = new ArchivosCargadosFacturacion();
+                        $archivos_recaudo = new ArchivosCargadosRecaudo();
+                        $catastro = new CatastroAgosto2022_2();
+                        $facturacion = new FacturacionAgosto2022_2();
+                        $recaudo = new RecaudoAgosto2022_2();
+
+                        move_uploaded_file($tempFile, $file);
+                        switch ($mes_consolidado) {
+                            case "Enero":
+                                $id_mes = 1;
+                                break;
+                            case "Febrero":
+                                $id_mes = 2;
+                                break;
+                            case "Marzo":
+                                $id_mes = 3;
+                                break;
+                            case "Abril":
+                                $id_mes = 4;
+                                break;
+                            case "Mayo":
+                                $id_mes = 5;
+                                break;
+                            case "Junio":
+                                $id_mes = 6;
+                                break;
+                            case "Julio":
+                                $id_mes = 7;
+                                break;
+                            case "Agosto":
+                                $id_mes = 8;
+                                break;
+                            case "Septiembre":
+                                $id_mes = 9;
+                                break;
+                            case "Octubre":
+                                $id_mes = 10;
+                                break;
+                            case "Noviembre":
+                                $id_mes = 11;
+                                break;
+                            case "Diciembre":
+                                $id_mes = 12;
+                                break;
+                        }
+
+                        // SE GURADA EL ARCHIVO CATASTRO
+                        $archivos_catastro->ANO_FACTURA = $ano_factura;
+                        $archivos_catastro->ID_MES_FACTURA = $id_mes;
+                        $archivos_catastro->MES_FACTURA = $mes_factura;
+                        $archivos_catastro->DEPARTAMENTO = $departamento;
+                        $archivos_catastro->MUNICIPIO = $municipio;
+                        $archivos_catastro->OPERADOR_RED = $operador_red;
+                        $archivos_catastro->RUTA = $filename;
+                        $archivos_catastro->FECHA_CREACION = $fecha_creacion;
+                        $archivos_catastro->ID_USUARIO = 1;
+                        $archivos_catastro->save();
+                        $query_filename_catastro = DB::table('archivos_cargados_catastro_2')->where('RUTA', '=', $filename)->first();
+                        $id_tabla_ruta_catastro = $query_filename_catastro->ID_TABLA;
+
+                        // SE GURADA EL ARCHIVO CATASTRO
+                        $archivos_facturacion->ANO_FACTURA = $ano_factura;
+                        $archivos_facturacion->ID_MES_FACTURA = $id_mes;
+                        $archivos_facturacion->MES_FACTURA = $mes_factura;
+                        $archivos_facturacion->DEPARTAMENTO = $departamento;
+                        $archivos_facturacion->MUNICIPIO = $municipio;
+                        $archivos_facturacion->OPERADOR_RED = $operador_red;
+                        $archivos_facturacion->RUTA = $filename;
+                        $archivos_facturacion->FECHA_CREACION = $fecha_creacion;
+                        $archivos_facturacion->ID_USUARIO = 1;
+                        $archivos_facturacion->save();
+                        $query_filename_facturacion = DB::table('archivos_cargados_facturacion_2')->where('RUTA', '=', $filename)->first();
+                        $id_tabla_ruta_facturacion = $query_filename_facturacion->ID_TABLA;
+
+                        // SE GURADA EL ARCHIVO CATASTRO
+                        $archivos_recaudo->ANO_FACTURA = $ano_factura;
+                        $archivos_recaudo->ID_MES_FACTURA = $id_mes;
+                        $archivos_recaudo->MES_FACTURA = $mes_factura;
+                        $archivos_recaudo->DEPARTAMENTO = $departamento;
+                        $archivos_recaudo->MUNICIPIO = $municipio;
+                        $archivos_recaudo->OPERADOR_RED = $operador_red;
+                        $archivos_recaudo->RUTA = $filename;
+                        $archivos_recaudo->FECHA_CREACION = $fecha_creacion;
+                        $archivos_recaudo->ID_USUARIO = 1;
+                        $archivos_recaudo->save();
+                        $query_filename_recaudo = DB::table('archivos_cargados_recaudo_2')->where('RUTA', '=', $filename)->first();
+                        $id_tabla_ruta_recaudo = $query_filename_recaudo->ID_TABLA;
+
+                        // SE LEE EL ARCHIVO
+                        $reader = new \PhpOffice\PhpSpreadsheet\Reader\Xlsx();
+                        $spreadsheet = $reader->load($file);
+                        $sheet_base = $spreadsheet->getSheetByName('BASE');
+                        $number_rows = $sheet_base->getHighestDataRow();
+                        $sheetData = $sheet_base->toArray();
+                        // SE ELIMINA LA PRIMERA FILA
+                        unset($sheetData[0]);
+                        $i = 0;
+                        foreach($sheetData as $row){
+                            $id_tipo_servicio = 1;
+                            $nombre_tarifa = strtoupper(str_replace(" ", "_", trim($row[10]))); //ESTRATO_1
+                            $query_tarifa = TarifaElectrohuila::where('NOMBRE', '=', $nombre_tarifa)->first();
+                            if(empty($query_tarifa)){
+                                $tarifa_instance = new TarifaElectrohuila();
+                                $tarifa_instance->NOMBRE = $nombre_tarifa;
+                                $tarifa_instance->save();
+                                $elementos[] = ['mensaje' => "Tarifa agregada en la posición '" . $i . "' ", 'elemento_agregado' =>  $nombre_tarifa];
+                            }
+                            $query_tarifa = TarifaElectrohuila::where('NOMBRE', '=', $nombre_tarifa)->first();
+                            $id_tarifa = trim($query_tarifa->ID_TARIFA);
+
+                            $nic = trim($row[6]);
+                            $nis = trim($row[6]);
+                            $nombre_propietario = strtoupper(trim(str_replace(array("#", ".", "'", ";", "/", "\\"), "", stripAccents($row[7]))));
+                            $direccion_vivienda = strtoupper(trim(str_replace(array(".", "'", ";", "/", "\\"), '',  stripAccents($row[9]))));
+                            //strtoupper(trim(str_replace("/", "", str_replace("'\'", "", $row[9]))));
+                            $consumo_facturado = trim(str_replace(",", ".", $row[16]));
+
+                            $descripcion_mpio = strtoupper(trim($row[4]));
+                            $posicion_gion = strrpos($descripcion_mpio, '-');
+                            $nombre_mpio = substr($descripcion_mpio, $posicion_gion + 1); // PITALITO
+                            // aqui consulto informacion del municipio
+                            $query_municipio = MunicipioVisita::where('NOMBRE', '=', $nombre_mpio)->first();
+                            $id_departamento = $query_municipio->ID_DEPARTAMENTO;
+                            $id_municipio = $query_municipio->ID_MUNICIPIO;
+                            $id_corregimiento = 0;
+
+                            // PREGUNTAR AQUÍ AL ING
+                            $deuda_corriente = trim(str_replace(",", ".", $row[26]));
+                            $deuda_cuota = 0;
+                            //$deuda_cuota = trim(str_replace(",", ".", $row[22]));
+                            $id_estado_suministro = 0;
+                            $total_deuda_corriente = $total_deuda_corriente + $deuda_corriente;
+                            $total_deuda_cuota = $total_deuda_cuota + $deuda_cuota;
+
+                            // REGISTRO EN LA TABLA DE CATASTRO
+                            $catastro->ID_TIPO_SERVICIO = $id_tipo_servicio;
+                            $catastro->ID_TARIFA = $id_tarifa;
+                            $catastro->NIC = $nic;
+                            $catastro->NIS = $nis;
+                            $catastro->NOMBRE_PROPIETARIO = $nombre_propietario;
+                            $catastro->DIRECCION_VIVIENDA = $direccion_vivienda;
+                            $catastro->CONSUMO_FACTURADO = $consumo_facturado;
+                            $catastro->ID_COD_DPTO = $id_departamento;
+                            $catastro->ID_COD_MPIO = $id_municipio;
+                            $catastro->ID_COD_CORREG = $id_corregimiento;
+                            $catastro->DEUDA_CORRIENTE = $deuda_corriente;
+                            $catastro->DEUDA_CUOTA = $deuda_cuota;
+                            $catastro->ID_ESTADO_SUMINISTRO = $id_estado_suministro;
+                            $catastro->ANO_CATASTRO = $ano_factura;
+                            $catastro->MES_CATASTRO = $id_mes;
+                            $catastro->ID_TABLA_RUTA = $id_tabla_ruta_catastro;
+                            $catastro->FECHA_CREACION = $fecha_creacion;
+                            $catastro->ID_USUARIO = 1;
+                            $catastro->OPERADOR_RED = $operador_red;
+                            $catastro->save();
+
+                            // REGISTRO TABLA FACTURACION
+                            $cod_oper_cont = 0;
+                            $sec_nis = 0;
+                            $sec_rec = 0;
+                            $fecha_fact_lect = $row[1] . "-" . $row[2] . "-" . "20"; //
+                            $fecha_proc_reg = $row[1] . "-" . $row[2] . "-" . "20";
+                            // SE OBTIENE ID TIPO CLIENTE PARA CUANDO NO APLIQUE
+                            $query_tipo_cliente = TipoClienteElectrohuila::where('NOMBRE', '=', 'NO APLICA')->first();
+                            $id_tipo_cliente = $query_tipo_cliente->ID_TIPO_CLIENTE; // Poner en tabla - No aplica
+                            $id_estado_contrato = 0;
+                            $concepto = 0;
+                            $importe_trans_fact = $row[18];
+                            $total_importe_trans_fact = $total_importe_trans_fact + $importe_trans_fact;
+
+                            $fecha_trans =  $row[1] . "-" . $row[2] . "-" . "20";
+                            $valor_recibo = trim(str_replace(",", ".", $row[16]));
+                            $total_valor_recibo = $total_valor_recibo + $valor_recibo;
+                            $id_sector_dpto = 0; //rural = 1; urbano = 2
+                            $id_cod_correg = 0;
+                            $id_cod_depto = $id_departamento;
+                            $id_cod_mpio = $id_municipio;
+
+                            $simbolo_variable = 0;
+                            $consumo_kwh = trim($row[14]);
+
+                            $facturacion->FECHA_PROC_REG = $fecha_proc_reg;
+                            $facturacion->COD_OPER_CONT = $cod_oper_cont;
+                            $facturacion->NIC = $nic;
+                            $facturacion->NIS = $nis;
+                            $facturacion->SEC_NIS = $sec_nis;
+                            $facturacion->SEC_REC = $sec_rec;
+                            $facturacion->FECHA_FACT_LECT = $fecha_fact_lect;
+                            $facturacion->ID_TIPO_CLIENTE = $id_tipo_cliente;
+                            $facturacion->ID_TARIFA = $id_tarifa;
+                            $facturacion->ID_ESTADO_CONTRATO = $id_estado_contrato;
+                            $facturacion->CONCEPTO = $concepto;
+                            $facturacion->IMPORTE_TRANS = $importe_trans_fact;
+                            $facturacion->FECHA_TRANS = $fecha_trans;
+                            $facturacion->VALOR_RECIBO = $valor_recibo;
+                            $facturacion->ID_SECTOR_DPTO = $id_sector_dpto;
+                            $facturacion->ID_COD_MPIO = $id_cod_mpio;
+                            $facturacion->ID_COD_CORREG = $id_cod_correg;
+                            $facturacion->ID_COD_DPTO = $id_cod_depto;
+                            $facturacion->SIMBOLO_VARIABLE = $simbolo_variable;
+                            $facturacion->CONSUMO_KWH = $consumo_kwh;
+                            $facturacion->ID_TIPO_POBLACION = $id_tipo_poblacion;
+                            $facturacion->ANO_FACTURA = $ano_factura;
+                            $facturacion->MES_FACTURA = $id_mes;
+                            $facturacion->ID_TABLA_RUTA = $id_tabla_ruta_facturacion;
+                            $facturacion-> FECHA_CREACION = $fecha_creacion;
+                            $facturacion->ID_USUARIO = 1;
+                            $facturacion->OPERADOR_RED = $operador_red;
+                            $facturacion->save();
+
+                            $importe_trans_reca = $row[22];
+                            $total_importe_trans_reca = $total_importe_trans_reca + $importe_trans_reca;
+
+                            $recaudo->FECHA_PROC_REG = $fecha_proc_reg;
+                            $recaudo->COD_OPER_CONT = $cod_oper_cont;
+                            $recaudo->NIC = $nic;
+                            $recaudo->NIS = $nis;
+                            $recaudo->SEC_NIS = $sec_nis;
+                            $recaudo->SEC_REC = $sec_rec;
+                            $recaudo->FECHA_FACT_LECT = $fecha_fact_lect;
+                            $recaudo->ID_TIPO_CLIENTE = $id_tipo_cliente;
+                            $recaudo->ID_TARIFA = $id_tarifa;
+                            $recaudo->ID_ESTADO_CONTRATO = $id_estado_contrato;
+                            $recaudo->CONCEPTO = $concepto;
+                            $recaudo->IMPORTE_TRANS = $importe_trans_reca;
+                            $recaudo->FECHA_TRANS = $fecha_trans;
+                            $recaudo->VALOR_RECIBO = $valor_recibo;
+                            $recaudo->ID_SECTOR_DPTO = $id_sector_dpto;
+                            $recaudo->ID_COD_MPIO = $id_cod_mpio;
+                            $recaudo->ID_COD_CORREG = $id_cod_correg;
+                            $recaudo->ID_COD_DPTO = $id_cod_depto;
+                            $recaudo->SIMBOLO_VARIABLE = $simbolo_variable;
+                            $recaudo->ID_TIPO_POBLACION = $id_tipo_poblacion;
+                            $recaudo->ANO_FACTURA = $ano_factura;
+                            $recaudo->MES_FACTURA = $id_mes;
+                            $recaudo->ID_TABLA_RUTA = $id_tabla_ruta_recaudo;
+                            $recaudo->FECHA_CREACION = $fecha_creacion;
+                            $recaudo->ID_USUARIO = 1;
+                            $recaudo->OPERADOR_RED = $operador_red;
+                            $recaudo->save();
+                            $i++;
+                        }
+                        // FINAL FOREACH SHEETDATA
+
+                        $consultas[] = CatastroAgosto2022_2::select([
+                            DB::raw('COUNT(*) AS TOTAL'),
+                            DB::raw("SUM(DEUDA_CORRIENTE) AS DEUDA_CORRIENTE"),
+                            DB::raw("SUM(DEUDA_CUOTA) AS DEUDA_CUOTA"),
+                        ])->where('ID_TABLA_RUTA', '=', $id_tabla_ruta_catastro)->get();
+
+                        $mensajes[] = ['mensaje' => 'Archivo cargado con exito', 'file' => $file];
+
+                        $consultas[] = FacturacionAgosto2022_2::select([
+                            DB::raw('COUNT(*) AS TOTAL'),
+                            DB::raw('SUM(IMPORTE_TRANS) AS TOTAL_IMPORTE_TRANS'),
+                            DB::raw('SUM(VALOR_RECIBO) AS TOTAL_VALOR_RECIBIDO')
+                        ])->where('ID_TABLA_RUTA', '=', $id_tabla_ruta_facturacion)->get();
+                        $mensajes[] = ['mensaje' => 'Archivo cargado con exito', 'file' => $file];
+
+                        $consultas[] = RecaudoAgosto2022_2::select([
+                            DB::raw('COUNT(*) AS TOTAL'),
+                            DB::raw('SUM(VALOR_RECIBO) AS TOTAL_VALOR_RECIBIDO')
+                        ])->where('ID_TABLA_RUTA', '=', $id_tabla_ruta_recaudo)->get();
+                        $mensajes[] = ['mensaje' => 'Archivo cargado con exito', 'file' => $file];
+
+                        unlink($file);
+                        $k++;
+
+                    }
+                    // FIN FOREACH FILES
+                    return ["resultado" => $consultas, "mensajes" => $mensajes, "elementos" => $elementos];
                     break;
                 case '7':
                     $operador_red = 'AIR-E';
