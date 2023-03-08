@@ -90,14 +90,15 @@ class FileController extends Controller
                         $iniciales_archivo = substr($filename, 0, 4);
                         switch ($iniciales_archivo) {
                             case 'CATA':
-                                $result = new ArchivosCargadosCatastro();
-                                move_uploaded_file($tempFile, $file);
+
                                 $query_ruta = DB::table('archivos_cargados_catastro_2')->where('RUTA', '=', $filename)->first();
 
                                 if ($query_ruta) {
                                     $mensajes[] = ["mensaje" => "El archivo ya existe", "file" => $file];
                                     break;
                                 }
+                                $result = new ArchivosCargadosCatastro();
+                                move_uploaded_file($tempFile, $file);
 
                                 switch ($mes_consolidado) {
                                     case "Enero":
@@ -295,13 +296,14 @@ class FileController extends Controller
 
                                 break;
                             case 'FACT':
-                                $result = new ArchivosCargadosFacturacion();
-                                move_uploaded_file($tempFile, $file);
+
                                 $query_ruta = ArchivosCargadosFacturacion::where('RUTA', '=', $filename)->first();
                                 if ($query_ruta) {
                                     $mensajes[] = ["mensaje" => "El archivo ya existe", "file" => $file];
                                     break;
                                 }
+                                $result = new ArchivosCargadosFacturacion();
+                                move_uploaded_file($tempFile, $file);
                                 switch ($mes_consolidado) {
                                     case "Enero":
                                         $id_mes = 1;
@@ -530,13 +532,14 @@ class FileController extends Controller
                                 break;
                             case 'RECA':
 
-                                $result = new ArchivosCargadosRecaudo();
-                                move_uploaded_file($tempFile, $file);
+
                                 $query_ruta = ArchivosCargadosRecaudo::where('RUTA', '=', $filename)->first();
                                 if ($query_ruta) {
                                     $mensajes[] = ["mensaje" => "El archivo ya existe", "file" => $file];
                                     break;
                                 }
+                                $result = new ArchivosCargadosRecaudo();
+                                move_uploaded_file($tempFile, $file);
                                 switch ($mes_consolidado) {
                                     case "Enero":
                                         $id_mes = 1;
@@ -755,13 +758,14 @@ class FileController extends Controller
                                 $k++;
                                 break;
                             case 'REFA':
-                                $result = new ArchivosCargadosRefacturacion();
-                                move_uploaded_file($tempFile, $file);
+
                                 $query_ruta = ArchivosCargadosRefacturacion::where('RUTA', '=', $filename)->first();
                                 if ($query_ruta) {
                                     $mensajes[] = ["mensaje" => "El archivo ya existe", "file" => $file];
                                     break;
                                 }
+                                $result = new ArchivosCargadosRefacturacion();
+                                move_uploaded_file($tempFile, $file);
 
                                 switch ($mes_consolidado) {
                                     case "Enero":
@@ -1004,20 +1008,16 @@ class FileController extends Controller
 
                         switch ($iniciales_archivo) {
                             case 'CATA':
-
-                                // INSTANCES
-                                $result = new ArchivosCargadosCatastro();
-                                //upload file in public directory
-                                move_uploaded_file($tempFile, $file);
-
                                 $query_ruta = DB::table('archivos_cargados_catastro_2')->where('RUTA', '=', $filename)->first();
 
                                 if ($query_ruta) {
                                     $mensajes[] = ["mensaje" => "El archivo ya existe", "file" => $file];
                                     break;
                                 }
-
-
+                                // INSTANCES
+                                $result = new ArchivosCargadosCatastro();
+                                //upload file in public directory
+                                move_uploaded_file($tempFile, $file);
                                 //array_push( "El archivo ya existe", $file);
 
                                 switch ($mes_consolidado) {
@@ -1194,14 +1194,15 @@ class FileController extends Controller
 
                                 break;
                             case 'FACT':
-                                $result = new ArchivosCargadosFacturacion();
-                                move_uploaded_file($tempFile, $file);
+
                                 $query_ruta = ArchivosCargadosFacturacion::where('RUTA', '=', $filename)->first();
 
                                 if ($query_ruta) {
                                     $mensajes[] = ["mensaje" => "El archivo ya existe", "file" => $file];
                                     break;
                                 }
+                                $result = new ArchivosCargadosFacturacion();
+                                move_uploaded_file($tempFile, $file);
 
                                 switch ($mes_consolidado) {
                                     case "Enero":
@@ -1388,14 +1389,15 @@ class FileController extends Controller
 
                                 break;
                             case 'RECA':
-                                $result = new ArchivosCargadosRecaudo();
-                                move_uploaded_file($tempFile, $file);
+
                                 $query_ruta = ArchivosCargadosRecaudo::where('RUTA', '=', $filename)->first();
 
                                 if ($query_ruta) {
                                     $mensajes[] = ["mensaje" => "El archivo ya existe", "file" => $file];
                                     break;
                                 }
+                                $result = new ArchivosCargadosRecaudo();
+                                move_uploaded_file($tempFile, $file);
 
                                 switch ($mes_consolidado) {
                                     case "Enero":
@@ -1576,13 +1578,15 @@ class FileController extends Controller
 
                                 break;
                             case 'REFA':
-                                $result = new ArchivosCargadosRefacturacion();
-                                move_uploaded_file($tempFile, $file);
+
                                 $query_ruta = ArchivosCargadosRefacturacion::where('RUTA', '=', $filename)->first();
                                 if ($query_ruta) {
                                     $mensajes[] = ["mensaje" => "El archivo ya existe", "file" => $file];
                                     break;
                                 }
+                                $result = new ArchivosCargadosRefacturacion();
+                                move_uploaded_file($tempFile, $file);
+
                                 switch ($mes_consolidado) {
                                     case "Enero":
                                         $id_mes = 1;
