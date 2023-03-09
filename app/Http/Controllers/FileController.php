@@ -60,7 +60,8 @@ class FileController extends Controller
         //return $request->files;
         // SE LEE EL ARCHIVO
 
-        function clearSpecialCharacters($string){
+        function clearSpecialCharacters($string)
+        {
             return str_replace('?', 'Ñ', utf8_decode(strtoupper(trim(str_replace(array("”", "#", ".", "'", ";", "/", "\\", "`", '"', "'"), "", stripAccents($string))))));
         }
 
@@ -76,12 +77,11 @@ class FileController extends Controller
         if ($request->files) {
             $k = 0;
             $files = $request->files;
-            $cod_operador_red = '8';
+            $cod_operador_red = '7';
             $mensajes = array();
             $consultas = array();
             $elementos = array();
             $valores = array();
-
 
             $total_deuda_corriente = 0;
             $total_deuda_cuota = 0;
@@ -89,7 +89,15 @@ class FileController extends Controller
             $total_importe_trans_fact = 0;
             $valor_recibo = 0;
             $total_valor_recibo = 0;
+            $total_importe_trans = 0;
 
+            $mes_consolidado = 'Agosto';
+            $ano_factura = '2022';
+            // TABLES OF QUERIES
+            $table_catastro = "catastro_" . strtolower($mes_consolidado) . $ano_factura . "_2";
+            $table_facturacion = "facturacion_" . strtolower($mes_consolidado) . $ano_factura . "_2";
+            $table_recaudo = "recaudo_" . strtolower($mes_consolidado) . $ano_factura . "_2";
+            $table_refacturacion = "refacturacion_" . strtolower($mes_consolidado) . $ano_factura . "_2";
             switch ($cod_operador_red) {
                 case '8':
                     $operador_red = 'ELECTROHUILA';
@@ -212,26 +220,26 @@ class FileController extends Controller
                         //SE ELIMINA LA PRIMERA FILA
                         unset($sheetData[0]);
                         $i = 0;
-                        foreach($sheetData as $row){
+                        foreach ($sheetData as $row) {
                             // INSTANCE OF CATASTRO
-                            $class_catastro_name = 'Catastro' . ucfirst($mes_consolidado).$ano_factura;
-                            $class_catastro = 'App\\Models\\'.$class_catastro_name;
+                            $class_catastro_name = 'Catastro' . ucfirst($mes_consolidado) . $ano_factura;
+                            $class_catastro = 'App\\Models\\' . $class_catastro_name;
                             $catastro = new $class_catastro;
 
                             // INSTANCE OF FACTURACION
-                            $class_facturacion_name = 'Facturacion' . ucfirst($mes_consolidado).$ano_factura;
-                            $class_facturacion = 'App\\Models\\'.$class_facturacion_name;
+                            $class_facturacion_name = 'Facturacion' . ucfirst($mes_consolidado) . $ano_factura;
+                            $class_facturacion = 'App\\Models\\' . $class_facturacion_name;
                             $facturacion = new $class_facturacion;
 
                             // INSTANCE OF RECAUDO
-                            $class_recaudo_name = 'Recaudo' . ucfirst($mes_consolidado).$ano_factura;
-                            $class_recaudo = 'App\\Models\\'.$class_recaudo_name;
+                            $class_recaudo_name = 'Recaudo' . ucfirst($mes_consolidado) . $ano_factura;
+                            $class_recaudo = 'App\\Models\\' . $class_recaudo_name;
                             $recaudo = new $class_recaudo;
 
                             $id_tipo_servicio = 1;
                             $nombre_tarifa = strtoupper(str_replace(" ", "_", trim($row[10]))); //ESTRATO_1
                             $query_tarifa = TarifaElectrohuila::where('NOMBRE', '=', $nombre_tarifa)->first();
-                            if(empty($query_tarifa)){
+                            if (empty($query_tarifa)) {
                                 $tarifa_instance = new TarifaElectrohuila();
                                 $tarifa_instance->NOMBRE = $nombre_tarifa;
                                 $tarifa_instance->COD_TARIFA = '';
@@ -335,7 +343,7 @@ class FileController extends Controller
                             $facturacion->ANO_FACTURA = $ano_factura;
                             $facturacion->MES_FACTURA = $id_mes;
                             $facturacion->ID_TABLA_RUTA = $id_tabla_ruta_facturacion;
-                            $facturacion-> FECHA_CREACION = $fecha_creacion;
+                            $facturacion->FECHA_CREACION = $fecha_creacion;
                             $facturacion->ID_USUARIO = 1;
                             $facturacion->OPERADOR_RED = $operador_red;
                             $facturacion->save();
@@ -373,39 +381,35 @@ class FileController extends Controller
                             $i++;
                         }
                         // FINAL FOREACH SHEETDATA
-                        $table_catastro = "catastro_" . strtolower($mes_consolidado) . $ano_factura . "_2";
+
                         $consultas[] = DB::table($table_catastro)
-                        ->select([
-                            DB::raw('COUNT(*) AS TOTAL'),
-                            DB::raw("SUM(DEUDA_CORRIENTE) AS DEUDA_CORRIENTE"),
-                            DB::raw("SUM(DEUDA_CUOTA) AS DEUDA_CUOTA"),
-                        ])->where('ID_TABLA_RUTA', '=', $id_tabla_ruta_catastro)->get();
-
+                            ->select([
+                                DB::raw('COUNT(*) AS TOTAL'),
+                                DB::raw("SUM(DEUDA_CORRIENTE) AS DEUDA_CORRIENTE"),
+                                DB::raw("SUM(DEUDA_CUOTA) AS DEUDA_CUOTA"),
+                            ])->where('ID_TABLA_RUTA', '=', $id_tabla_ruta_catastro)->get();
                         $mensajes[] = ['mensaje' => 'Archivo cargado con exito', 'file' => $file];
 
-                        $table_facturacion = "facturacion_" . strtolower($mes_consolidado) . $ano_factura . "_2";
                         $consultas[] = DB::table($table_facturacion)
-                        ->select([
-                            DB::raw('COUNT(*) AS TOTAL'),
-                            DB::raw('SUM(IMPORTE_TRANS) AS TOTAL_IMPORTE_TRANS'),
-                            DB::raw('SUM(VALOR_RECIBO) AS TOTAL_VALOR_RECIBIDO')
-                        ])->where('ID_TABLA_RUTA', '=', $id_tabla_ruta_facturacion)->get();
+                            ->select([
+                                DB::raw('COUNT(*) AS TOTAL'),
+                                DB::raw('SUM(IMPORTE_TRANS) AS TOTAL_IMPORTE_TRANS'),
+                                DB::raw('SUM(VALOR_RECIBO) AS TOTAL_VALOR_RECIBIDO')
+                            ])->where('ID_TABLA_RUTA', '=', $id_tabla_ruta_facturacion)->get();
                         $mensajes[] = ['mensaje' => 'Archivo cargado con exito', 'file' => $file];
 
-                        $table_recaudo = "recaudo_" . strtolower($mes_consolidado) . $ano_factura . "_2";
                         $consultas[] = DB::table($table_recaudo)
-                        ->select([
-                            DB::raw('COUNT(*) AS TOTAL'),
-                            DB::raw('SUM(VALOR_RECIBO) AS TOTAL_VALOR_RECIBIDO')
-                        ])->where('ID_TABLA_RUTA', '=', $id_tabla_ruta_recaudo)->get();
+                            ->select([
+                                DB::raw('COUNT(*) AS TOTAL'),
+                                DB::raw('SUM(VALOR_RECIBO) AS TOTAL_VALOR_RECIBIDO')
+                            ])->where('ID_TABLA_RUTA', '=', $id_tabla_ruta_recaudo)->get();
                         $mensajes[] = ['mensaje' => 'Archivo cargado con exito', 'file' => $file];
-                        $valores[] = ['total_deuda_corriente' => $total_deuda_corriente , 'total_deuda_cuota' => $total_deuda_cuota];
+                        $valores[] = ['total_deuda_corriente' => $total_deuda_corriente, 'total_deuda_cuota' => $total_deuda_cuota];
 
                         unlink($file);
                         $k++;
-
                     }
-                    // // FIN FOREACH FILES
+                    // FIN FOREACH FILES
                     return ["resultado" => $consultas, "mensajes" => $mensajes, "elementos" => $elementos, "valores" => $valores];
                     break;
                 case '7':
@@ -418,10 +422,7 @@ class FileController extends Controller
                         $file = $filepath . $filename;
 
                         $fecha_creacion = date('Y-m-d');
-                        $mes_consolidado = 'Agosto';
-
                         $id_tipo_poblacion = 1;
-                        $ano_factura = '2022';
                         $mes_factura = 'AGOSTO';
                         $departamento = 'LA GUAJIRA';
                         $municipio = 'RIOHACHA';
@@ -490,7 +491,6 @@ class FileController extends Controller
                                 $result->ID_USUARIO = 1;
                                 $result->save();
 
-
                                 $query_filename = DB::table('archivos_cargados_catastro_2')->where('RUTA', '=', $filename)->first();
                                 $id_tabla_ruta = $query_filename->ID_TABLA;
 
@@ -501,14 +501,17 @@ class FileController extends Controller
                                 unset($data[0]);
                                 foreach ($data as $lines) {
                                     // INSTANCES
-                                    $catastro = new CatastroAgosto2022();
+                                    // INSTANCE OF CATASTRO
+                                    $class_catastro_name = 'Catastro' . ucfirst($mes_consolidado) . $ano_factura;
+                                    $class_catastro = 'App\\Models\\' . $class_catastro_name;
+                                    $catastro = new $class_catastro;
+
                                     $corregimiento = new Corregimiento();
                                     $suministro = new EstadoSuministro();
 
                                     $row[] = explode("|", $lines);
                                     // NOTA: ID_TIPO_SERVICIO QUEMADO
                                     $id_tipo_servicio = 1;
-
                                     $nombre_tarifa = strtoupper(str_replace(" ", "_", trim($row[$i][4])));
 
                                     $query_tarifa = TarifaAire::where('NOMBRE', '=', $nombre_tarifa)->first();
@@ -552,29 +555,32 @@ class FileController extends Controller
                                     if ($nombre_corregimiento == '') {
                                         $query_corregimeinto_sin_nombre = Corregimiento::where('ID_DEPARTAMENTO', '=', $id_departamento)
                                             ->where('ID_MUNICIPIO', '=', $id_municipio)->where('NOMBRE', '=', 'SIN_NOMBRE')->first();
-                                    }
-                                    $query_corregimiento = DB::table('corregimientos_2')->where('ID_DEPARTAMENTO', '=', $id_departamento)->where('ID_MUNICIPIO', '=', $id_municipio)->where('NOMBRE', '=', $nombre_corregimiento)->first();
-
-                                    // SI NO ENCUENTRA CORREGIMIENTO LO AGREGAMOS
-                                    if ($query_corregimiento) {
-                                        $id_corregimiento = $query_corregimiento->ID_TABLA;
+                                        $id_corregimiento = $query_corregimeinto_sin_nombre->ID_TABLA;
                                     } else {
-                                        $query_max_id_corregimiento = Corregimiento::where('ID_DEPARTAMENTO', '=', $id_departamento)->where('ID_MUNICIPIO', '=', $id_municipio)->max('ID_CORREGIMIENTO');
-                                        $id_max_corregimiento = $query_max_id_corregimiento + 1;
+                                        $query_corregimiento = DB::table('corregimientos_2')->where('ID_DEPARTAMENTO', '=', $id_departamento)->where('ID_MUNICIPIO', '=', $id_municipio)->where('NOMBRE', '=', $nombre_corregimiento)->first();
 
-                                        // GUARDO UN NUEVO CORREGIMIENTO
-                                        $corregimiento->ID_DEPARTAMENTO = $id_departamento;
-                                        $corregimiento->ID_MUNICIPIO = $id_municipio;
-                                        $corregimiento->ID_CORREGIMIENTO = $id_max_corregimiento;
-                                        $corregimiento->NOMBRE = $nombre_corregimiento;
-                                        $corregimiento->save();
+                                        // SI NO ENCUENTRA CORREGIMIENTO LO AGREGAMOS
+                                        if ($query_corregimiento) {
+                                            $id_corregimiento = $query_corregimiento->ID_TABLA;
+                                        } else {
+                                            $query_max_id_corregimiento = Corregimiento::where('ID_DEPARTAMENTO', '=', $id_departamento)->where('ID_MUNICIPIO', '=', $id_municipio)->max('ID_CORREGIMIENTO');
+                                            $id_max_corregimiento = $query_max_id_corregimiento + 1;
 
-                                        // CONSULTAR EL NUEVO CORREGIMIENTO
-                                        $query_new_id_corregimiento = Corregimiento::max('ID_TABLA');
-                                        $id_corregimiento = $query_new_id_corregimiento;
-                                        $elementos[] = ['mensaje' => "Corregimiento agregado en la posición '" . $i . "' ", 'elemento_agregado' =>  $nombre_corregimiento];
-                                        // NOTA: FALTA RETORNAR CORREGIMIENTO AGREGADO
+                                            // GUARDO UN NUEVO CORREGIMIENTO
+                                            $corregimiento->ID_DEPARTAMENTO = $id_departamento;
+                                            $corregimiento->ID_MUNICIPIO = $id_municipio;
+                                            $corregimiento->ID_CORREGIMIENTO = $id_max_corregimiento;
+                                            $corregimiento->NOMBRE = $nombre_corregimiento;
+                                            $corregimiento->save();
+
+                                            // CONSULTAR EL NUEVO CORREGIMIENTO
+                                            $query_new_id_corregimiento = Corregimiento::max('ID_TABLA');
+                                            $id_corregimiento = $query_new_id_corregimiento;
+                                            $elementos[] = ['mensaje' => "Corregimiento agregado en la posición '" . $i . "' ", 'elemento_agregado' =>  $nombre_corregimiento];
+                                            // NOTA: FALTA RETORNAR CORREGIMIENTO AGREGADO
+                                        }
                                     }
+
 
                                     $deuda_corriente = trim(str_replace(",", ".", $row[$i][13]));
                                     $deuda_cuota = trim(str_replace(",", ".", $row[$i][14]));
@@ -620,13 +626,14 @@ class FileController extends Controller
                                     $i++;
                                 }
                                 // FIN FOREACH LINE
-                                $consultas[] = CatastroAgosto2022::select([
-                                    DB::raw('COUNT(*) AS TOTAL'),
-                                    DB::raw("SUM(DEUDA_CORRIENTE) AS DEUDA_CORRIENTE"),
-                                    DB::raw("SUM(DEUDA_CUOTA) AS DEUDA_CUOTA"),
-                                ])->where('ID_TABLA_RUTA', '=', $id_tabla_ruta)->get();
+                                $consultas[] = DB::table($table_catastro)->select([
+                                        DB::raw('COUNT(*) AS TOTAL'),
+                                        DB::raw("SUM(DEUDA_CORRIENTE) AS DEUDA_CORRIENTE"),
+                                        DB::raw("SUM(DEUDA_CUOTA) AS DEUDA_CUOTA"),
+                                    ])->where('ID_TABLA_RUTA', '=', $id_tabla_ruta)->get();
 
                                 $mensajes[] = ['mensaje' => 'Archivo cargado con exito', 'file' => $file];
+                                $valores[] = ['total_deuda_corriente' => $total_deuda_corriente, 'total_deuda_cuota' => $total_deuda_cuota];
 
                                 unlink($file);
                                 $k++;
@@ -696,17 +703,15 @@ class FileController extends Controller
                                 $id_tabla_ruta = $query_filename->ID_TABLA;
 
                                 $importe_trans = 0;
-                                $total_importe_trans = 0;
-                                $total_valor_recibo = 0;
                                 $data = file($file);
                                 $row = array();
                                 $i = 0;
                                 unset($data[0]);
                                 foreach ($data as $lines) {
-                                    // INSTANCES
-                                    $facturacion = new FacturacionAgosto2022();
-
-
+                                    // INSTANCE OF FACTURACION
+                                    $class_facturacion_name = 'Facturacion' . ucfirst($mes_consolidado) . $ano_factura;
+                                    $class_facturacion = 'App\\Models\\' . $class_facturacion_name;
+                                    $facturacion = new $class_facturacion;
 
                                     $row[] = explode("|", $lines);
                                     $nombre_municipio = strtoupper(trim(utf8_encode($row[$i][1])));
@@ -734,9 +739,7 @@ class FileController extends Controller
                                         $elementos[] = ['mensaje' => "Tipo cliente agregado en la posición '" . $i . "' ", 'elemento_agregado' =>  $nombre_tipo_cliente];
                                     }
 
-
                                     // EN FACT SOLO VOY A CONSULTAR Y SI NO GUARDO EN 0
-
                                     $nombre_tarifa = trim(strtoupper(str_replace(" ", "_", substr($row[$i][13], 12, 9)))); //ESTRATO_1
                                     switch (substr($nombre_tarifa, 0, 7)) {
                                             // SI INCLUYE ESTRATO BUSCA EL ID RELACIONADO O DE NO PONE 0 POR DEFECTO
@@ -770,7 +773,7 @@ class FileController extends Controller
                                     }
 
                                     // SE CONSULTA CORREGIMIENTO POR EL NIC
-                                    $query_corregimiento = CatastroAgosto2022::where('NIC', '=', $nic)->first();
+                                    $query_corregimiento = DB::table($table_catastro)->where('NIC', '=', $nic)->first();
                                     if ($query_corregimiento) {
                                         $id_cod_correg = $query_corregimiento->ID_COD_CORREG;
                                     } else {
@@ -855,21 +858,19 @@ class FileController extends Controller
                                     $i++;
                                 }
                                 // FIN FOREACH LINE
-                                $consultas[] = FacturacionAgosto2022::select([
+                                $consultas[] = DB::table($table_facturacion)->select([
                                     DB::raw('COUNT(*) AS TOTAL'),
                                     DB::raw('SUM(IMPORTE_TRANS) AS TOTAL_IMPORTE_TRANS'),
                                     DB::raw('SUM(VALOR_RECIBO) AS TOTAL_VALOR_RECIBIDO')
                                 ])->where('ID_TABLA_RUTA', '=', $id_tabla_ruta)->get();
 
                                 $mensajes[] = ['mensaje' => 'Archivo cargado con exito', 'file' => $file];
-
+                                $valores[] = ['total_importe_trans' => $total_importe_trans, 'total_valor_recibo' => $total_valor_recibo];
                                 unlink($file);
                                 $k++;
 
                                 break;
                             case 'RECA':
-
-
                                 $query_ruta = ArchivosCargadosRecaudo::where('RUTA', '=', $filename)->first();
                                 if ($query_ruta) {
                                     $mensajes[] = ["mensaje" => "El archivo ya existe", "file" => $file];
@@ -930,20 +931,16 @@ class FileController extends Controller
 
                                 $query_filename = ArchivosCargadosRecaudo::where('RUTA', '=', $filename)->first();
                                 $id_tabla_ruta = $query_filename->ID_TABLA;
-
-
                                 $importe_trans = 0;
-                                $total_importe_trans = 0;
-                                $total_valor_recibo = 0;
                                 $data = file($file);
                                 $row = array();
                                 $i = 0;
                                 unset($data[0]);
                                 foreach ($data as $lines) {
-                                    // INSTANCES
-                                    $recaudo = new RecaudoAgosto2022();
-                                    $corregimiento = new Corregimiento();
-                                    $suministro = new EstadoSuministro();
+                                    // INSTANCE OF RECAUDO
+                                    $class_recaudo_name = 'Recaudo' . ucfirst($mes_consolidado) . $ano_factura;
+                                    $class_recaudo = 'App\\Models\\' . $class_recaudo_name;
+                                    $recaudo = new $class_recaudo;
 
                                     $row[] = explode("|", $lines);
 
@@ -959,10 +956,7 @@ class FileController extends Controller
                                     $sec_nis = trim($row[$i][9]);
                                     $sec_rec = trim($row[$i][10]);
                                     $fecha_fact_lect = substr($row[$i][11], 0, 4) . "-" . substr($row[$i][11], 4, 2) . "-" . substr($row[$i][11], 6, 2);
-                                    //CODIGO NUEVO
-                                    $ano_periodo_anterior = substr($row[$i][11], 0, 4);
-                                    $mes_periodo_anterior = substr($row[$i][11], 4, 2);
-                                    //FIN CODIGO NUEVO
+
                                     $nombre_tipo_cliente = strtoupper(trim(str_replace("-", "_", str_replace(" ", "_", $row[$i][12]))));
                                     $query_tipo_cliente = TipoClienteAire::where('NOMBRE', '=', $nombre_tipo_cliente)->first();
                                     if ($query_tipo_cliente) {
@@ -1009,7 +1003,7 @@ class FileController extends Controller
                                     }
 
                                     // SE CONSULTA CORREGIMIENTO POR EL NIC
-                                    $query_corregimiento = CatastroAgosto2022::where('NIC', '=', $nic)->first();
+                                    $query_corregimiento = DB::table($table_catastro)->where('NIC', '=', $nic)->first();
                                     if ($query_corregimiento) {
                                         $id_cod_correg = $query_corregimiento->ID_COD_CORREG;
                                     } else {
@@ -1086,11 +1080,13 @@ class FileController extends Controller
                                     $recaudo->save();
                                     $i++;
                                 }
-                                $consultas[] = RecaudoAgosto2022::select([
-                                    DB::raw('COUNT(*) AS TOTAL'),
-                                    DB::raw('SUM(VALOR_RECIBO) AS TOTAL_VALOR_RECIBIDO')
-                                ])->where('ID_TABLA_RUTA', '=', $id_tabla_ruta)->get();
+                                $consultas[] = DB::table($table_recaudo)
+                                    ->select([
+                                        DB::raw('COUNT(*) AS TOTAL'),
+                                        DB::raw('SUM(VALOR_RECIBO) AS TOTAL_VALOR_RECIBIDO')
+                                    ])->where('ID_TABLA_RUTA', '=', $id_tabla_ruta)->get();
                                 $mensajes[] = ['mensaje' => 'Archivo cargado con exito', 'file' => $file];
+                                $valores[] = ['total_importe_trans' => $total_importe_trans, 'total_valor_recibo' => $total_valor_recibo];
                                 unlink($file);
                                 $k++;
                                 break;
@@ -1158,14 +1154,15 @@ class FileController extends Controller
                                 $id_tabla_ruta = $query_filename->ID_TABLA;
 
                                 $importe_trans = 0;
-                                $total_importe_trans = 0;
-                                $total_valor_recibo = 0;
                                 $data = file($file);
                                 $row = array();
                                 $i = 0;
                                 unset($data[0]);
                                 foreach ($data as $lines) {
-                                    $refacturacion = new ReFacturacionAgosto2022();
+                                    // INSTANCE OF FACTURACION
+                                    $class_refacturacion_name = 'Refacturacion' . ucfirst($mes_consolidado) . $ano_factura;
+                                    $class_facturacion = 'App\\Models\\' . $class_refacturacion_name;
+                                    $refacturacion = new $class_facturacion;
                                     $row[] = explode("|", $lines);
 
                                     $nombre_municipio =   strtoupper(str_replace("_", " ", trim(utf8_decode($row[$i][1]))));
@@ -1181,10 +1178,7 @@ class FileController extends Controller
                                     $sec_rec = trim($row[$i][10]);
 
                                     $fecha_fact_lect = substr($row[$i][11], 0, 4) . "-" . substr($row[$i][11], 4, 2) . "-" . substr($row[$i][11], 6, 2);
-                                    //CODIGO NUEVO
-                                    $ano_periodo_anterior = substr($row[$i][11], 0, 4);
-                                    $mes_periodo_anterior = substr($row[$i][11], 4, 2);
-                                    //FIN CODIGO NUEVO
+
                                     $nombre_tipo_cliente = strtoupper(trim(str_replace("-", "_", str_replace(" ", "_", $row[$i][12]))));
                                     $query_tipo_cliente = TipoClienteAire::where('NOMBRE', '=', $nombre_tipo_cliente)->first();
                                     if ($query_tipo_cliente) {
@@ -1307,12 +1301,14 @@ class FileController extends Controller
                                     $i++;
                                 }
                                 // FIN FOREACH LINE
-                                $consultas[] = ReFacturacionAgosto2022::select([
-                                    DB::raw('COUNT(*) AS TOTAL'),
-                                    DB::raw('SUM(IMPORTE_TRANS) AS TOTAL_IMPORTE_TRANS'),
-                                    DB::raw('SUM(VALOR_RECIBO) AS TOTAL_VALOR_RECIBO')
-                                ])->where('ID_TABLA_RUTA', '=', $id_tabla_ruta)->get();
+                                $consultas[] = DB::table($table_refacturacion)
+                                    ->select([
+                                        DB::raw('COUNT(*) AS TOTAL'),
+                                        DB::raw('SUM(IMPORTE_TRANS) AS TOTAL_IMPORTE_TRANS'),
+                                        DB::raw('SUM(VALOR_RECIBO) AS TOTAL_VALOR_RECIBO')
+                                    ])->where('ID_TABLA_RUTA', '=', $id_tabla_ruta)->get();
                                 $mensajes[] = ['mensaje' => 'Archivo cargado con exito', 'file' => $file];
+                                $valores[] = ['total_importe_trans' => $total_importe_trans, 'total_valor_recibo' => $total_valor_recibo];
                                 unlink($file);
                                 $k++;
                                 break;
@@ -1320,8 +1316,7 @@ class FileController extends Controller
                         // FIN INICIALES ARCHIVOS
                     }
                     // FIN FOREACH FILES
-                    return ["resultado" => $consultas, "mensajes" => $mensajes, "elementos" => $elementos];
-
+                    return ["resultado" => $consultas, "mensajes" => $mensajes, "elementos" => $elementos, 'valores' => $valores];
                     break;
                 case '6':
                     $operador_red = 'AFINIA';
@@ -1978,8 +1973,6 @@ class FileController extends Controller
                                 $id_tabla_ruta = $query_filename->ID_TABLA;
 
                                 $importe_trans = 0;
-                                $total_importe_trans = 0;
-                                $total_valor_recibo = 0;
                                 $data = file($file);
                                 $row = array();
                                 $i = 0;
