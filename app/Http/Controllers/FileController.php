@@ -58,7 +58,8 @@ class FileController extends Controller
     {
         //var_dump($request->files);
         //return $request->files;
-
+        // SE LEE EL ARCHIVO
+        $reader = new \PhpOffice\PhpSpreadsheet\Reader\Xlsx();
 
 
 
@@ -105,10 +106,10 @@ class FileController extends Controller
 
 
                         $query_ruta = DB::table('archivos_cargados_catastro_2')->where('RUTA', '=', $filename)->first();
-                        if ($query_ruta) {
-                            $mensajes[] = ["mensaje" => "El archivo ya existe", "file" => $file];
-                            break;
-                        }
+                        // if ($query_ruta) {
+                        //     $mensajes[] = ["mensaje" => "El archivo ya existe", "file" => $file];
+                        //     break;
+                        // }
                         //INSTANCES
                         $archivos_catastro = new ArchivosCargadosCatastro();
                         $archivos_facturacion = new ArchivosCargadosFacturacion();
@@ -199,8 +200,7 @@ class FileController extends Controller
                         $query_filename_recaudo = DB::table('archivos_cargados_recaudo_2')->where('RUTA', '=', $filename)->first();
                         $id_tabla_ruta_recaudo = $query_filename_recaudo->ID_TABLA;
 
-                        // SE LEE EL ARCHIVO
-                        $reader = new \PhpOffice\PhpSpreadsheet\Reader\Xlsx();
+
                         $spreadsheet = $reader->load($file);
                         $sheet_base = $spreadsheet->getSheetByName('BASE');
                         $number_rows = $sheet_base->getHighestDataRow();
@@ -215,6 +215,7 @@ class FileController extends Controller
                             if(empty($query_tarifa)){
                                 $tarifa_instance = new TarifaElectrohuila();
                                 $tarifa_instance->NOMBRE = $nombre_tarifa;
+                                $tarifa_instance->COD_TARIFA = '';
                                 $tarifa_instance->save();
                                 $elementos[] = ['mensaje' => "Tarifa agregada en la posición '" . $i . "' ", 'elemento_agregado' =>  $nombre_tarifa];
                             }
@@ -223,8 +224,11 @@ class FileController extends Controller
 
                             $nic = trim($row[6]);
                             $nis = trim($row[6]);
-                            $nombre_propietario = strtoupper(trim(str_replace(array("#", ".", "'", ";", "/", "\\"), "", stripAccents($row[7]))));
-                            $direccion_vivienda = strtoupper(trim(str_replace(array(".", "'", ";", "/", "\\"), '',  stripAccents($row[9]))));
+                            $nombre_propietario = str_replace('?', '', utf8_decode(strtoupper(trim(str_replace(array("”", "#", ".", "'", ";", "/", "\\", "`", '"', "'"), "", stripAccents($row[7]))))));
+                            $direccion_vivienda = str_replace('?', '', utf8_decode(strtoupper(trim(str_replace(array("”", "#", ".", "'", ";", "/", "\\", "`", '"', "'"), "", stripAccents($row[9]))))));
+                            // $nombre_propietario = strtoupper(trim(str_replace(array("#", ".", "'", ";", "/", "\\"), "", stripAccents($row[7]))));
+                            // $direccion_vivienda = strtoupper(trim(str_replace(array(".", "'", ";", "/", "\\"), '',  stripAccents($row[9]))));
+                            echo 'nombre_propietario: '. $nombre_propietario . 'pos: '. $i;
                             //strtoupper(trim(str_replace("/", "", str_replace("'\'", "", $row[9]))));
                             $consumo_facturado = trim(str_replace(",", ".", $row[16]));
 
