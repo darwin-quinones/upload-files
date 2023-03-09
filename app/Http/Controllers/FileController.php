@@ -11,10 +11,10 @@ use App\Models\ArchivosCargadosCatastro;
 use App\Models\ArchivosCargadosFacturacion;
 use App\Models\ArchivosCargadosRecaudo;
 use App\Models\ArchivosCargadosRefacturacion;
-use App\Models\CatastroAgosto2022_2;
-use App\Models\FacturacionAgosto2022_2;
-use App\Models\RecaudoAgosto2022_2;
-use App\Models\RefacturacionAgosto2022_2;
+use App\Models\CatastroAgosto2022;
+use App\Models\FacturacionAgosto2022;
+use App\Models\RecaudoAgosto2022;
+use App\Models\ReFacturacionAgosto2022;
 use App\Models\Tarifa;
 use App\Models\TarifaAire;
 use App\Models\Corregimiento;
@@ -59,8 +59,10 @@ class FileController extends Controller
         //var_dump($request->files);
         //return $request->files;
         // SE LEE EL ARCHIVO
-        $reader = new \PhpOffice\PhpSpreadsheet\Reader\Xlsx();
 
+        function clearSpecialCharacters($string){
+            return str_replace('?', 'Ñ', utf8_decode(strtoupper(trim(str_replace(array("”", "#", ".", "'", ";", "/", "\\", "`", '"', "'"), "", stripAccents($string))))));
+        }
 
 
         function stripAccents($str)
@@ -78,11 +80,21 @@ class FileController extends Controller
             $mensajes = array();
             $consultas = array();
             $elementos = array();
+            $valores = array();
+
+
+            $total_deuda_corriente = 0;
+            $total_deuda_cuota = 0;
+            $total_importe_trans_reca = 0;
+            $total_importe_trans_fact = 0;
+            $valor_recibo = 0;
+            $total_valor_recibo = 0;
 
             switch ($cod_operador_red) {
                 case '8':
-                    $operador_red = 'ELECTROUILA';
+                    $operador_red = 'ELECTROHUILA';
                     foreach ($files as $archivo) {
+                        $reader = new \PhpOffice\PhpSpreadsheet\Reader\Xlsx();
                         $filename = $archivo->getClientOriginalName();
                         $tempFile = $archivo;
                         $filepath = public_path('uploads/');
@@ -95,28 +107,19 @@ class FileController extends Controller
                         $ano_factura = '2022';
                         $mes_factura = 'AGOSTO';
                         $departamento = 'HUILA';
-                        $municipio = 'NEIVA';
+                        $municipio = 'PITALITO';
 
-                        $total_deuda_corriente = 0;
-                        $total_deuda_cuota = 0;
-                        $total_importe_trans_reca = 0;
-                        $total_importe_trans_fact = 0;
-                        $valor_recibo = 0;
-                        $total_valor_recibo = 0;
 
 
                         $query_ruta = DB::table('archivos_cargados_catastro_2')->where('RUTA', '=', $filename)->first();
-                        // if ($query_ruta) {
-                        //     $mensajes[] = ["mensaje" => "El archivo ya existe", "file" => $file];
-                        //     break;
-                        // }
+                        if ($query_ruta) {
+                            $mensajes[] = ["mensaje" => "El archivo ya existe", "file" => $file];
+                            break;
+                        }
                         //INSTANCES
                         $archivos_catastro = new ArchivosCargadosCatastro();
                         $archivos_facturacion = new ArchivosCargadosFacturacion();
                         $archivos_recaudo = new ArchivosCargadosRecaudo();
-                        $catastro = new CatastroAgosto2022_2();
-                        $facturacion = new FacturacionAgosto2022_2();
-                        $recaudo = new RecaudoAgosto2022_2();
 
                         move_uploaded_file($tempFile, $file);
                         switch ($mes_consolidado) {
@@ -202,13 +205,29 @@ class FileController extends Controller
 
 
                         $spreadsheet = $reader->load($file);
-                        $sheet_base = $spreadsheet->getSheetByName('BASE');
+                        // $sheet_base = $spreadsheet->getSheetByName('BASE');
+                        $sheet_base = $spreadsheet->getSheet(0);
                         $number_rows = $sheet_base->getHighestDataRow();
                         $sheetData = $sheet_base->toArray();
-                        // SE ELIMINA LA PRIMERA FILA
+                        //SE ELIMINA LA PRIMERA FILA
                         unset($sheetData[0]);
                         $i = 0;
                         foreach($sheetData as $row){
+                            // INSTANCE OF CATASTRO
+                            $class_catastro_name = 'Catastro' . ucfirst($mes_consolidado).$ano_factura;
+                            $class_catastro = 'App\\Models\\'.$class_catastro_name;
+                            $catastro = new $class_catastro;
+
+                            // INSTANCE OF FACTURACION
+                            $class_facturacion_name = 'Facturacion' . ucfirst($mes_consolidado).$ano_factura;
+                            $class_facturacion = 'App\\Models\\'.$class_facturacion_name;
+                            $facturacion = new $class_facturacion;
+
+                            // INSTANCE OF RECAUDO
+                            $class_recaudo_name = 'Recaudo' . ucfirst($mes_consolidado).$ano_factura;
+                            $class_recaudo = 'App\\Models\\'.$class_recaudo_name;
+                            $recaudo = new $class_recaudo;
+
                             $id_tipo_servicio = 1;
                             $nombre_tarifa = strtoupper(str_replace(" ", "_", trim($row[10]))); //ESTRATO_1
                             $query_tarifa = TarifaElectrohuila::where('NOMBRE', '=', $nombre_tarifa)->first();
@@ -224,12 +243,8 @@ class FileController extends Controller
 
                             $nic = trim($row[6]);
                             $nis = trim($row[6]);
-                            $nombre_propietario = str_replace('?', '', utf8_decode(strtoupper(trim(str_replace(array("”", "#", ".", "'", ";", "/", "\\", "`", '"', "'"), "", stripAccents($row[7]))))));
-                            $direccion_vivienda = str_replace('?', '', utf8_decode(strtoupper(trim(str_replace(array("”", "#", ".", "'", ";", "/", "\\", "`", '"', "'"), "", stripAccents($row[9]))))));
-                            // $nombre_propietario = strtoupper(trim(str_replace(array("#", ".", "'", ";", "/", "\\"), "", stripAccents($row[7]))));
-                            // $direccion_vivienda = strtoupper(trim(str_replace(array(".", "'", ";", "/", "\\"), '',  stripAccents($row[9]))));
-                            echo 'nombre_propietario: '. $nombre_propietario . 'pos: '. $i;
-                            //strtoupper(trim(str_replace("/", "", str_replace("'\'", "", $row[9]))));
+                            $nombre_propietario = clearSpecialCharacters($row[7]);
+                            $direccion_vivienda = clearSpecialCharacters($row[9]);
                             $consumo_facturado = trim(str_replace(",", ".", $row[16]));
 
                             $descripcion_mpio = strtoupper(trim($row[4]));
@@ -358,8 +373,9 @@ class FileController extends Controller
                             $i++;
                         }
                         // FINAL FOREACH SHEETDATA
-
-                        $consultas[] = CatastroAgosto2022_2::select([
+                        $table_catastro = "catastro_" . strtolower($mes_consolidado) . $ano_factura . "_2";
+                        $consultas[] = DB::table($table_catastro)
+                        ->select([
                             DB::raw('COUNT(*) AS TOTAL'),
                             DB::raw("SUM(DEUDA_CORRIENTE) AS DEUDA_CORRIENTE"),
                             DB::raw("SUM(DEUDA_CUOTA) AS DEUDA_CUOTA"),
@@ -367,25 +383,30 @@ class FileController extends Controller
 
                         $mensajes[] = ['mensaje' => 'Archivo cargado con exito', 'file' => $file];
 
-                        $consultas[] = FacturacionAgosto2022_2::select([
+                        $table_facturacion = "facturacion_" . strtolower($mes_consolidado) . $ano_factura . "_2";
+                        $consultas[] = DB::table($table_facturacion)
+                        ->select([
                             DB::raw('COUNT(*) AS TOTAL'),
                             DB::raw('SUM(IMPORTE_TRANS) AS TOTAL_IMPORTE_TRANS'),
                             DB::raw('SUM(VALOR_RECIBO) AS TOTAL_VALOR_RECIBIDO')
                         ])->where('ID_TABLA_RUTA', '=', $id_tabla_ruta_facturacion)->get();
                         $mensajes[] = ['mensaje' => 'Archivo cargado con exito', 'file' => $file];
 
-                        $consultas[] = RecaudoAgosto2022_2::select([
+                        $table_recaudo = "recaudo_" . strtolower($mes_consolidado) . $ano_factura . "_2";
+                        $consultas[] = DB::table($table_recaudo)
+                        ->select([
                             DB::raw('COUNT(*) AS TOTAL'),
                             DB::raw('SUM(VALOR_RECIBO) AS TOTAL_VALOR_RECIBIDO')
                         ])->where('ID_TABLA_RUTA', '=', $id_tabla_ruta_recaudo)->get();
                         $mensajes[] = ['mensaje' => 'Archivo cargado con exito', 'file' => $file];
+                        $valores[] = ['total_deuda_corriente' => $total_deuda_corriente , 'total_deuda_cuota' => $total_deuda_cuota];
 
                         unlink($file);
                         $k++;
 
                     }
-                    // FIN FOREACH FILES
-                    return ["resultado" => $consultas, "mensajes" => $mensajes, "elementos" => $elementos];
+                    // // FIN FOREACH FILES
+                    return ["resultado" => $consultas, "mensajes" => $mensajes, "elementos" => $elementos, "valores" => $valores];
                     break;
                 case '7':
                     $operador_red = 'AIR-E';
@@ -473,8 +494,6 @@ class FileController extends Controller
                                 $query_filename = DB::table('archivos_cargados_catastro_2')->where('RUTA', '=', $filename)->first();
                                 $id_tabla_ruta = $query_filename->ID_TABLA;
 
-                                $total_deuda_corriente = 0;
-                                $total_deuda_cuota = 0;
                                 $data = file($file);
                                 $row = array();
                                 $i = 0;
@@ -482,7 +501,7 @@ class FileController extends Controller
                                 unset($data[0]);
                                 foreach ($data as $lines) {
                                     // INSTANCES
-                                    $catastro = new CatastroAgosto2022_2();
+                                    $catastro = new CatastroAgosto2022();
                                     $corregimiento = new Corregimiento();
                                     $suministro = new EstadoSuministro();
 
@@ -601,7 +620,7 @@ class FileController extends Controller
                                     $i++;
                                 }
                                 // FIN FOREACH LINE
-                                $consultas[] = CatastroAgosto2022_2::select([
+                                $consultas[] = CatastroAgosto2022::select([
                                     DB::raw('COUNT(*) AS TOTAL'),
                                     DB::raw("SUM(DEUDA_CORRIENTE) AS DEUDA_CORRIENTE"),
                                     DB::raw("SUM(DEUDA_CUOTA) AS DEUDA_CUOTA"),
@@ -685,7 +704,7 @@ class FileController extends Controller
                                 unset($data[0]);
                                 foreach ($data as $lines) {
                                     // INSTANCES
-                                    $facturacion = new FacturacionAgosto2022_2();
+                                    $facturacion = new FacturacionAgosto2022();
 
 
 
@@ -751,7 +770,7 @@ class FileController extends Controller
                                     }
 
                                     // SE CONSULTA CORREGIMIENTO POR EL NIC
-                                    $query_corregimiento = CatastroAgosto2022_2::where('NIC', '=', $nic)->first();
+                                    $query_corregimiento = CatastroAgosto2022::where('NIC', '=', $nic)->first();
                                     if ($query_corregimiento) {
                                         $id_cod_correg = $query_corregimiento->ID_COD_CORREG;
                                     } else {
@@ -836,7 +855,7 @@ class FileController extends Controller
                                     $i++;
                                 }
                                 // FIN FOREACH LINE
-                                $consultas[] = FacturacionAgosto2022_2::select([
+                                $consultas[] = FacturacionAgosto2022::select([
                                     DB::raw('COUNT(*) AS TOTAL'),
                                     DB::raw('SUM(IMPORTE_TRANS) AS TOTAL_IMPORTE_TRANS'),
                                     DB::raw('SUM(VALOR_RECIBO) AS TOTAL_VALOR_RECIBIDO')
@@ -922,7 +941,7 @@ class FileController extends Controller
                                 unset($data[0]);
                                 foreach ($data as $lines) {
                                     // INSTANCES
-                                    $recaudo = new RecaudoAgosto2022_2();
+                                    $recaudo = new RecaudoAgosto2022();
                                     $corregimiento = new Corregimiento();
                                     $suministro = new EstadoSuministro();
 
@@ -990,7 +1009,7 @@ class FileController extends Controller
                                     }
 
                                     // SE CONSULTA CORREGIMIENTO POR EL NIC
-                                    $query_corregimiento = CatastroAgosto2022_2::where('NIC', '=', $nic)->first();
+                                    $query_corregimiento = CatastroAgosto2022::where('NIC', '=', $nic)->first();
                                     if ($query_corregimiento) {
                                         $id_cod_correg = $query_corregimiento->ID_COD_CORREG;
                                     } else {
@@ -1067,7 +1086,7 @@ class FileController extends Controller
                                     $recaudo->save();
                                     $i++;
                                 }
-                                $consultas[] = RecaudoAgosto2022_2::select([
+                                $consultas[] = RecaudoAgosto2022::select([
                                     DB::raw('COUNT(*) AS TOTAL'),
                                     DB::raw('SUM(VALOR_RECIBO) AS TOTAL_VALOR_RECIBIDO')
                                 ])->where('ID_TABLA_RUTA', '=', $id_tabla_ruta)->get();
@@ -1146,7 +1165,7 @@ class FileController extends Controller
                                 $i = 0;
                                 unset($data[0]);
                                 foreach ($data as $lines) {
-                                    $refacturacion = new RefacturacionAgosto2022_2();
+                                    $refacturacion = new ReFacturacionAgosto2022();
                                     $row[] = explode("|", $lines);
 
                                     $nombre_municipio =   strtoupper(str_replace("_", " ", trim(utf8_decode($row[$i][1]))));
@@ -1212,7 +1231,7 @@ class FileController extends Controller
                                     }
 
                                     // SE CONSULTA CORREGIMIENTO POR EL NIC
-                                    $query_corregimiento = CatastroAgosto2022_2::where('NIC', '=', $nic)->first();
+                                    $query_corregimiento = CatastroAgosto2022::where('NIC', '=', $nic)->first();
                                     if ($query_corregimiento) {
                                         $id_cod_correg = $query_corregimiento->ID_COD_CORREG;
                                     } else {
@@ -1288,7 +1307,7 @@ class FileController extends Controller
                                     $i++;
                                 }
                                 // FIN FOREACH LINE
-                                $consultas[] = RefacturacionAgosto2022_2::select([
+                                $consultas[] = ReFacturacionAgosto2022::select([
                                     DB::raw('COUNT(*) AS TOTAL'),
                                     DB::raw('SUM(IMPORTE_TRANS) AS TOTAL_IMPORTE_TRANS'),
                                     DB::raw('SUM(VALOR_RECIBO) AS TOTAL_VALOR_RECIBO')
@@ -1402,7 +1421,7 @@ class FileController extends Controller
                                 foreach ($data as $lines) {
 
                                     // INSTANCES
-                                    $catastro = new CatastroAgosto2022_2();
+                                    $catastro = new CatastroAgosto2022();
                                     $corregimiento = new Corregimiento();
                                     $suministro = new EstadoSuministro();
 
@@ -1499,7 +1518,7 @@ class FileController extends Controller
                                 }
                                 // FIN FOREACH LINE
 
-                                $consultas[] = CatastroAgosto2022_2::select([
+                                $consultas[] = CatastroAgosto2022::select([
                                     DB::raw('COUNT(*) AS TOTAL'),
                                     DB::raw("SUM(DEUDA_CORRIENTE) AS DEUDA_CORRIENTE"),
                                     DB::raw("SUM(DEUDA_CUOTA) AS DEUDA_CUOTA"),
@@ -1585,7 +1604,7 @@ class FileController extends Controller
 
                                 foreach ($data as $lines) {
                                     // INSTANCES
-                                    $facturacion = new FacturacionAgosto2022_2();
+                                    $facturacion = new FacturacionAgosto2022();
                                     $corregimiento = new Corregimiento();
                                     $suministro = new EstadoSuministro();
 
@@ -1693,7 +1712,7 @@ class FileController extends Controller
                                     $i++;
                                 }
                                 // FIN FOREACH LINE
-                                $consultas[] = FacturacionAgosto2022_2::select([
+                                $consultas[] = FacturacionAgosto2022::select([
                                     DB::raw('COUNT(*) AS TOTAL'),
                                     DB::raw('SUM(IMPORTE_TRANS) AS TOTAL_IMPORTE_TRANS'),
                                     DB::raw('SUM(VALOR_RECIBO) AS TOTAL_VALOR_RECIBIDO')
@@ -1780,7 +1799,7 @@ class FileController extends Controller
 
                                 foreach ($data as $lines) {
                                     // INSTANCES
-                                    $recaudo = new RecaudoAgosto2022_2();
+                                    $recaudo = new RecaudoAgosto2022();
                                     $corregimiento = new Corregimiento();
                                     $suministro = new EstadoSuministro();
 
@@ -1886,7 +1905,7 @@ class FileController extends Controller
                                     $i++;
                                 }
                                 // FIN FOREACH LINE
-                                $consultas[] = RecaudoAgosto2022_2::select([
+                                $consultas[] = RecaudoAgosto2022::select([
                                     DB::raw('COUNT(*) AS TOTAL'),
                                     DB::raw('SUM(VALOR_RECIBO) AS TOTAL_VALOR_RECIBIDO')
                                 ])->where('ID_TABLA_RUTA', '=', $id_tabla_ruta)->get();
@@ -1966,7 +1985,7 @@ class FileController extends Controller
                                 $i = 0;
 
                                 foreach ($data as $lines) {
-                                    $refacturacion = new RefacturacionAgosto2022_2();
+                                    $refacturacion = new ReFacturacionAgosto2022();
                                     $row[] = explode("\t", $lines);
                                     $fecha_proc_reg = trim(substr($row[$i][0], 0, 4) . "-" . substr($row[$i][0], 4, 2) . "-" . substr($row[$i][0], 6, 2));
                                     $cod_oper_cont = trim($row[$i][1]);
@@ -2071,7 +2090,7 @@ class FileController extends Controller
                                 }
                                 // FIN FOREACH LINE
 
-                                $consultas[] = RefacturacionAgosto2022_2::select([
+                                $consultas[] = ReFacturacionAgosto2022::select([
                                     DB::raw('COUNT(*) AS TOTAL'),
                                     DB::raw('SUM(IMPORTE_TRANS) AS TOTAL_IMPORTE_TRANS'),
                                     DB::raw('SUM(VALOR_RECIBO) AS TOTAL_VALOR_RECIBO')

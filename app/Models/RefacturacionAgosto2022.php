@@ -2,8 +2,8 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
-class FacturacionAgosto2022_2 extends Model{
-    protected $table = 'facturacion_agosto2022_2';
+class RefacturacionAgosto2022 extends Model{
+    protected $table = 'refacturacion_agosto2022_2';
     protected $primaryKey = 'ID_TABLA';
     public $timestamps = false;
 }
