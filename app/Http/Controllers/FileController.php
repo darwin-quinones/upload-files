@@ -75,21 +75,18 @@ class FileController extends Controller
 
 
         if ($request->files) {
+            $mensajes = array();
+            $max_files = 1;
+
+            // if(count($request->files) > $max_files){
+            //     return $mensajes[] = ["mensaje" => "Solo puede subir un maximo de '". $max_files . "' archivos"];
+            // }
             $k = 0;
             $files = $request->files;
-            $cod_operador_red = '7';
-            $mensajes = array();
+            $cod_operador_red = '8';
             $consultas = array();
             $elementos = array();
             $valores = array();
-
-            $total_deuda_corriente = 0;
-            $total_deuda_cuota = 0;
-            $total_importe_trans_reca = 0;
-            $total_importe_trans_fact = 0;
-            $valor_recibo = 0;
-            $total_valor_recibo = 0;
-            $total_importe_trans = 0;
 
             $mes_consolidado = 'Agosto';
             $ano_factura = '2022';
@@ -220,6 +217,11 @@ class FileController extends Controller
                         //SE ELIMINA LA PRIMERA FILA
                         unset($sheetData[0]);
                         $i = 0;
+                        $total_deuda_corriente = 0;
+                        $total_deuda_cuota = 0;
+                        $total_importe_trans_reca = 0;
+                        $total_importe_trans_fact = 0;
+                        $total_valor_recibo = 0;
                         foreach ($sheetData as $row) {
                             // INSTANCE OF CATASTRO
                             $class_catastro_name = 'Catastro' . ucfirst($mes_consolidado) . $ano_factura;
@@ -389,6 +391,7 @@ class FileController extends Controller
                                 DB::raw("SUM(DEUDA_CUOTA) AS DEUDA_CUOTA"),
                             ])->where('ID_TABLA_RUTA', '=', $id_tabla_ruta_catastro)->get();
                         $mensajes[] = ['mensaje' => 'Archivo cargado con exito', 'file' => $file];
+                        $valores[] = ['total_deuda_corriente' => $total_deuda_corriente, 'total_deuda_cuota' => $total_deuda_cuota];
 
                         $consultas[] = DB::table($table_facturacion)
                             ->select([
@@ -397,14 +400,16 @@ class FileController extends Controller
                                 DB::raw('SUM(VALOR_RECIBO) AS TOTAL_VALOR_RECIBIDO')
                             ])->where('ID_TABLA_RUTA', '=', $id_tabla_ruta_facturacion)->get();
                         $mensajes[] = ['mensaje' => 'Archivo cargado con exito', 'file' => $file];
+                        $valores[] = ['total_importe_trans' => $total_importe_trans_fact, 'total_valor_recibo' => $total_valor_recibo];
 
                         $consultas[] = DB::table($table_recaudo)
                             ->select([
                                 DB::raw('COUNT(*) AS TOTAL'),
+                                DB::raw('SUM(IMPORTE_TRANS) AS TOTAL_IMPORTE_TRANS'),
                                 DB::raw('SUM(VALOR_RECIBO) AS TOTAL_VALOR_RECIBIDO')
                             ])->where('ID_TABLA_RUTA', '=', $id_tabla_ruta_recaudo)->get();
                         $mensajes[] = ['mensaje' => 'Archivo cargado con exito', 'file' => $file];
-                        $valores[] = ['total_deuda_corriente' => $total_deuda_corriente, 'total_deuda_cuota' => $total_deuda_cuota];
+                        $valores[] = ['total_importe_trans' => $total_importe_trans_reca, 'total_valor_recibo' => $total_valor_recibo];
 
                         unlink($file);
                         $k++;
@@ -494,6 +499,8 @@ class FileController extends Controller
                                 $query_filename = DB::table('archivos_cargados_catastro_2')->where('RUTA', '=', $filename)->first();
                                 $id_tabla_ruta = $query_filename->ID_TABLA;
 
+                                $total_deuda_corriente = 0;
+                                $total_deuda_cuota = 0;
                                 $data = file($file);
                                 $row = array();
                                 $i = 0;
@@ -627,10 +634,10 @@ class FileController extends Controller
                                 }
                                 // FIN FOREACH LINE
                                 $consultas[] = DB::table($table_catastro)->select([
-                                        DB::raw('COUNT(*) AS TOTAL'),
-                                        DB::raw("SUM(DEUDA_CORRIENTE) AS DEUDA_CORRIENTE"),
-                                        DB::raw("SUM(DEUDA_CUOTA) AS DEUDA_CUOTA"),
-                                    ])->where('ID_TABLA_RUTA', '=', $id_tabla_ruta)->get();
+                                    DB::raw('COUNT(*) AS TOTAL'),
+                                    DB::raw("SUM(DEUDA_CORRIENTE) AS DEUDA_CORRIENTE"),
+                                    DB::raw("SUM(DEUDA_CUOTA) AS DEUDA_CUOTA"),
+                                ])->where('ID_TABLA_RUTA', '=', $id_tabla_ruta)->get();
 
                                 $mensajes[] = ['mensaje' => 'Archivo cargado con exito', 'file' => $file];
                                 $valores[] = ['total_deuda_corriente' => $total_deuda_corriente, 'total_deuda_cuota' => $total_deuda_cuota];
@@ -703,6 +710,8 @@ class FileController extends Controller
                                 $id_tabla_ruta = $query_filename->ID_TABLA;
 
                                 $importe_trans = 0;
+                                $total_valor_recibo = 0;
+                                $total_importe_trans = 0;
                                 $data = file($file);
                                 $row = array();
                                 $i = 0;
@@ -932,6 +941,8 @@ class FileController extends Controller
                                 $query_filename = ArchivosCargadosRecaudo::where('RUTA', '=', $filename)->first();
                                 $id_tabla_ruta = $query_filename->ID_TABLA;
                                 $importe_trans = 0;
+                                $total_valor_recibo = 0;
+                                $total_importe_trans = 0;
                                 $data = file($file);
                                 $row = array();
                                 $i = 0;
@@ -1083,10 +1094,12 @@ class FileController extends Controller
                                 $consultas[] = DB::table($table_recaudo)
                                     ->select([
                                         DB::raw('COUNT(*) AS TOTAL'),
+                                        DB::raw('SUM(IMPORTE_TRANS) AS TOTAL_IMPORTE_TRANS'),
                                         DB::raw('SUM(VALOR_RECIBO) AS TOTAL_VALOR_RECIBIDO')
                                     ])->where('ID_TABLA_RUTA', '=', $id_tabla_ruta)->get();
                                 $mensajes[] = ['mensaje' => 'Archivo cargado con exito', 'file' => $file];
                                 $valores[] = ['total_importe_trans' => $total_importe_trans, 'total_valor_recibo' => $total_valor_recibo];
+
                                 unlink($file);
                                 $k++;
                                 break;
@@ -1154,6 +1167,8 @@ class FileController extends Controller
                                 $id_tabla_ruta = $query_filename->ID_TABLA;
 
                                 $importe_trans = 0;
+                                $total_valor_recibo = 0;
+                                $total_importe_trans = 0;
                                 $data = file($file);
                                 $row = array();
                                 $i = 0;
@@ -1405,7 +1420,8 @@ class FileController extends Controller
 
                                 $query_filename = DB::table('archivos_cargados_catastro_2')->where('RUTA', '=', $filename)->first();
                                 $id_tabla_ruta = $query_filename->ID_TABLA;
-
+                                $total_deuda_corriente = 0;
+                                $total_deuda_cuota = 0;
                                 $data = file($file);
                                 $row = array();
                                 $i = 0;
@@ -1598,10 +1614,10 @@ class FileController extends Controller
                                 $i = 0;
 
                                 foreach ($data as $lines) {
-                                    // INSTANCES
-                                    $facturacion = new FacturacionAgosto2022();
-                                    $corregimiento = new Corregimiento();
-                                    $suministro = new EstadoSuministro();
+                                    // INSTANCE OF FACTURACION
+                                    $class_facturacion_name = 'Facturacion' . ucfirst($mes_consolidado) . $ano_factura;
+                                    $class_facturacion = 'App\\Models\\' . $class_facturacion_name;
+                                    $facturacion = new $class_facturacion;
 
                                     $row[] = explode("\t", $lines);
                                     $fecha_proc_reg = trim(substr($row[$i][0], 0, 4) . "-" . substr($row[$i][0], 4, 2) . "-" . substr($row[$i][0], 6, 2));
@@ -1707,14 +1723,15 @@ class FileController extends Controller
                                     $i++;
                                 }
                                 // FIN FOREACH LINE
-                                $consultas[] = FacturacionAgosto2022::select([
-                                    DB::raw('COUNT(*) AS TOTAL'),
-                                    DB::raw('SUM(IMPORTE_TRANS) AS TOTAL_IMPORTE_TRANS'),
-                                    DB::raw('SUM(VALOR_RECIBO) AS TOTAL_VALOR_RECIBIDO')
-                                ])->where('ID_TABLA_RUTA', '=', $id_tabla_ruta)->get();
+                                $consultas[] = DB::table($table_facturacion)
+                                    ->select([
+                                        DB::raw('COUNT(*) AS TOTAL'),
+                                        DB::raw('SUM(IMPORTE_TRANS) AS TOTAL_IMPORTE_TRANS'),
+                                        DB::raw('SUM(VALOR_RECIBO) AS TOTAL_VALOR_RECIBIDO')
+                                    ])->where('ID_TABLA_RUTA', '=', $id_tabla_ruta)->get();
 
                                 $mensajes[] = ['mensaje' => 'Archivo cargado con exito', 'file' => $file];
-
+                                $valores[] = ['total_importe_trans' => $total_importe_trans, 'total_valor_recibo' => $total_valor_recibo];
                                 unlink($file);
                                 $k++;
 
@@ -1786,17 +1803,17 @@ class FileController extends Controller
 
 
                                 $importe_trans = 0;
-                                $total_importe_trans = 0;
                                 $total_valor_recibo = 0;
+                                $total_importe_trans = 0;
                                 $data = file($file);
                                 $row = array();
                                 $i = 0;
 
                                 foreach ($data as $lines) {
-                                    // INSTANCES
-                                    $recaudo = new RecaudoAgosto2022();
-                                    $corregimiento = new Corregimiento();
-                                    $suministro = new EstadoSuministro();
+                                    // INSTANCE OF RECAUDO
+                                    $class_recaudo_name = 'Recaudo' . ucfirst($mes_consolidado) . $ano_factura;
+                                    $class_recaudo = 'App\\Models\\' . $class_recaudo_name;
+                                    $recaudo = new $class_recaudo;
 
                                     $row[] = explode("\t", $lines);
                                     $fecha_proc_reg = trim(substr($row[$i][0], 0, 4) . "-" . substr($row[$i][0], 4, 2) . "-" . substr($row[$i][0], 6, 2));
@@ -1900,11 +1917,14 @@ class FileController extends Controller
                                     $i++;
                                 }
                                 // FIN FOREACH LINE
-                                $consultas[] = RecaudoAgosto2022::select([
-                                    DB::raw('COUNT(*) AS TOTAL'),
-                                    DB::raw('SUM(VALOR_RECIBO) AS TOTAL_VALOR_RECIBIDO')
-                                ])->where('ID_TABLA_RUTA', '=', $id_tabla_ruta)->get();
+                                $consultas[] = DB::table($table_recaudo)
+                                    ->select([
+                                        DB::raw('COUNT(*) AS TOTAL'),
+                                        DB::raw('SUM(IMPORTE_TRANS) AS TOTAL_IMPORTE_TRANS'),
+                                        DB::raw('SUM(VALOR_RECIBO) AS TOTAL_VALOR_RECIBIDO')
+                                    ])->where('ID_TABLA_RUTA', '=', $id_tabla_ruta)->get();
                                 $mensajes[] = ['mensaje' => 'Archivo cargado con exito', 'file' => $file];
+                                $valores[] = ['total_importe_trans' => $total_importe_trans, 'total_valor_recibo' => $total_valor_recibo];
                                 unlink($file);
                                 $k++;
 
@@ -1973,12 +1993,18 @@ class FileController extends Controller
                                 $id_tabla_ruta = $query_filename->ID_TABLA;
 
                                 $importe_trans = 0;
+                                $total_valor_recibo = 0;
+                                $total_importe_trans = 0;
                                 $data = file($file);
                                 $row = array();
                                 $i = 0;
 
                                 foreach ($data as $lines) {
-                                    $refacturacion = new ReFacturacionAgosto2022();
+                                    // INSTANCE OF FACTURACION
+                                    $class_refacturacion_name = 'Refacturacion' . ucfirst($mes_consolidado) . $ano_factura;
+                                    $class_facturacion = 'App\\Models\\' . $class_refacturacion_name;
+                                    $refacturacion = new $class_facturacion;
+
                                     $row[] = explode("\t", $lines);
                                     $fecha_proc_reg = trim(substr($row[$i][0], 0, 4) . "-" . substr($row[$i][0], 4, 2) . "-" . substr($row[$i][0], 6, 2));
                                     $cod_oper_cont = trim($row[$i][1]);
@@ -2083,12 +2109,14 @@ class FileController extends Controller
                                 }
                                 // FIN FOREACH LINE
 
-                                $consultas[] = ReFacturacionAgosto2022::select([
-                                    DB::raw('COUNT(*) AS TOTAL'),
-                                    DB::raw('SUM(IMPORTE_TRANS) AS TOTAL_IMPORTE_TRANS'),
-                                    DB::raw('SUM(VALOR_RECIBO) AS TOTAL_VALOR_RECIBO')
-                                ])->where('ID_TABLA_RUTA', '=', $id_tabla_ruta)->get();
+                                $consultas[] = DB::table($table_refacturacion)
+                                    ->select([
+                                        DB::raw('COUNT(*) AS TOTAL'),
+                                        DB::raw('SUM(IMPORTE_TRANS) AS TOTAL_IMPORTE_TRANS'),
+                                        DB::raw('SUM(VALOR_RECIBO) AS TOTAL_VALOR_RECIBO')
+                                    ])->where('ID_TABLA_RUTA', '=', $id_tabla_ruta)->get();
                                 $mensajes[] = ['mensaje' => 'Archivo cargado con exito', 'file' => $file];
+                                $valores[] = ['total_importe_trans' => $total_importe_trans, 'total_valor_recibo' => $total_valor_recibo];
                                 unlink($file);
                                 $k++;
 
@@ -2097,7 +2125,7 @@ class FileController extends Controller
                         // FIN SWITCH CASE INICIALES ARCHIVOS
                     }
                     // FIN FOREACH FILES
-                    return ["resultado" => $consultas, "mensajes" => $mensajes, "elementos" => $elementos];
+                    return ["resultado" => $consultas, "mensajes" => $mensajes, "elementos" => $elementos, 'valores' => $valores];
                     // ENVIO DE RESPUESTAS
                     break;
             }

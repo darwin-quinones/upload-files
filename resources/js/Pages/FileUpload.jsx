@@ -4,6 +4,7 @@ export default function Dashboard() {
     const [files, setFiles] = useState('');
     //state for checking file size
     const [fileSize, setFileSize] = useState(true);
+    const [filesNumber, setFilesNumber] = useState(true)
     // for file upload progress message
     const [fileUploadProgress, setFileUploadProgress] = useState(false);
     //for displaying response message
@@ -22,21 +23,27 @@ export default function Dashboard() {
        setFileUploadResponse(null);
 
         const formData = new FormData();
-
+        var totalFilesSize = 0;
+        let allowedFilesSize = 50 // 10 MB
+        let allowedFilesNumber = 20
         for (let i = 0; i < files.length; i++) {
-            if (files[i].size > 1024000000000){
-                setFileSize(false);
-                setFileUploadProgress(false);
-                setFileUploadResponse(null);
-                return;
-            }
-
+            var filesize = files[i].size / 1024;
+		    filesize = (Math.round((filesize / 1024) * 100) / 100);
+            totalFilesSize = totalFilesSize + filesize;
             //formData.append('files', files[i])
             formData.append(files[i].name, files[i])
         }
-        console.log(files[1])
-        //console.log(formData.getAll());
-        console.log(formData.values())
+        console.log(totalFilesSize)
+        if (totalFilesSize > allowedFilesSize){
+            setFileSize(false);
+            setFileUploadProgress(false);
+            setFileUploadResponse(null);
+            return;
+        }if(files.length > allowedFilesNumber) {
+            setFilesNumber(false)
+            setFileUploadProgress(false);
+            setFileUploadResponse(null);
+        }
 
         const requestOptions = {
             method: 'POST',
@@ -70,6 +77,7 @@ export default function Dashboard() {
          <input type="file"  multiple onChange={uploadFileHandler}/>
          <button type='submit'>Upload</button>
          {!fileSize && <p style={{color:'red'}}>File size exceeded!!</p>}
+         {!filesNumber && <p style={{color:'red'}}>Files Number exceeded!!</p>}
          {fileUploadProgress && <p style={{color:'red'}}>Uploading File(s)</p>}
         {fileUploadResponse!=null && <p style={{color:'green'}}>{fileUploadResponse}</p>}
       </form>
