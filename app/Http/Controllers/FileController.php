@@ -1404,11 +1404,8 @@ class FileController extends Controller
                                 $result->save();
 
                                 $query_filename = DB::table('archivos_cargados_catastro_2')->where('RUTA', '=', $filename)->first();
-
                                 $id_tabla_ruta = $query_filename->ID_TABLA;
 
-                                $total_deuda_corriente = 0;
-                                $total_deuda_cuota = 0;
                                 $data = file($file);
                                 $row = array();
                                 $i = 0;
@@ -1416,7 +1413,10 @@ class FileController extends Controller
                                 foreach ($data as $lines) {
 
                                     // INSTANCES
-                                    $catastro = new CatastroAgosto2022();
+                                    // INSTANCE OF CATASTRO
+                                    $class_catastro_name = 'Catastro' . ucfirst($mes_consolidado) . $ano_factura;
+                                    $class_catastro = 'App\\Models\\' . $class_catastro_name;
+                                    $catastro = new $class_catastro;
                                     $corregimiento = new Corregimiento();
                                     $suministro = new EstadoSuministro();
 
@@ -1428,8 +1428,8 @@ class FileController extends Controller
                                     $nic = $row[$i][4];
                                     $nis = $row[$i][5];
 
-                                    $nombre_propietario = str_replace('?', 'N', utf8_decode(strtoupper(trim(str_replace(array("”", "#", ".", "'", ";", "/", "\\", "`", '"', "'"), "", stripAccents($row[$i][6]))))));
-                                    $direccion_vivienda = str_replace('?', 'N', utf8_decode(strtoupper(trim(str_replace(array("”", "#", ".", "'", ";", "/", "\\", "`", '"', "'"), "", stripAccents($row[$i][7]))))));
+                                    $nombre_propietario = clearSpecialCharacters($row[$i][6]);
+                                    $direccion_vivienda = clearSpecialCharacters($row[$i][7]);
 
 
                                     $consumo_facturado = trim(str_replace(",", ".", $row[$i][8]));
@@ -1513,13 +1513,13 @@ class FileController extends Controller
                                 }
                                 // FIN FOREACH LINE
 
-                                $consultas[] = CatastroAgosto2022::select([
+                                $consultas[] = DB::table($table_catastro)->select([
                                     DB::raw('COUNT(*) AS TOTAL'),
                                     DB::raw("SUM(DEUDA_CORRIENTE) AS DEUDA_CORRIENTE"),
                                     DB::raw("SUM(DEUDA_CUOTA) AS DEUDA_CUOTA"),
                                 ])->where('ID_TABLA_RUTA', '=', $id_tabla_ruta)->get();
-
                                 $mensajes[] = ['mensaje' => 'Archivo cargado con exito', 'file' => $file];
+                                $valores[] = ['total_deuda_corriente' => $total_deuda_corriente, 'total_deuda_cuota' => $total_deuda_cuota];
 
                                 unlink($file);
                                 $k++;
