@@ -83,7 +83,7 @@ class FileController extends Controller
             // }
             $k = 0;
             $files = $request->files;
-            $cod_operador_red = '8';
+            $cod_operador_red = '7';
             $consultas = array();
             $elementos = array();
             $valores = array();
