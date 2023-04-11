@@ -11,10 +11,8 @@ use App\Models\ArchivosCargadosCatastro;
 use App\Models\ArchivosCargadosFacturacion;
 use App\Models\ArchivosCargadosRecaudo;
 use App\Models\ArchivosCargadosRefacturacion;
+use App\Models\ArchivosCargadosCens;
 use App\Models\CatastroAgosto2022;
-use App\Models\FacturacionAgosto2022;
-use App\Models\RecaudoAgosto2022;
-use App\Models\ReFacturacionAgosto2022;
 use App\Models\Tarifa;
 use App\Models\TarifaAire;
 use App\Models\Corregimiento;
@@ -83,19 +81,175 @@ class FileController extends Controller
             // }
             $k = 0;
             $files = $request->files;
-            $cod_operador_red = '7';
+            $cod_operador_red = '9';
             $consultas = array();
             $elementos = array();
             $valores = array();
 
-            $mes_consolidado = 'Agosto';
-            $ano_factura = '2022';
+            // $mes_consolidado = 'Agosto';
+            // $ano_factura = '2022';
+            $mes_consolidado = 'Enero';
+            $ano_factura = '2023';
             // TABLES OF QUERIES
             $table_catastro = "catastro_" . strtolower($mes_consolidado) . $ano_factura . "_2";
             $table_facturacion = "facturacion_" . strtolower($mes_consolidado) . $ano_factura . "_2";
             $table_recaudo = "recaudo_" . strtolower($mes_consolidado) . $ano_factura . "_2";
             $table_refacturacion = "refacturacion_" . strtolower($mes_consolidado) . $ano_factura . "_2";
+            $table_fact_reca_cens = "fact_reca_cens_" . strtolower($mes_consolidado). "_" . $ano_factura . "_2";
+
+
             switch ($cod_operador_red) {
+                    // CASO DE CENS
+                case '9':
+                    $operador_red = 'CENS';
+                    foreach ($files as $archivo) {
+
+                        $reader = new \PhpOffice\PhpSpreadsheet\Reader\Xlsx();
+                        $filename = $archivo->getClientOriginalName();
+                        $tempFile = $archivo;
+                        $filepath = public_path('uploads/');
+                        $file = $filepath . $filename;
+                        $fecha_creacion = date('Y-m-d');
+                        $id_usuario = 1;
+
+                        $id_tipo_poblacion = 1;
+
+                        $departamento = 'NORTE DE SANTANDER';
+                        $municipio = 'VILLA DEL ROSARIO';
+
+                        // VERIFY IF THE FILE ALREADY EXISTS
+                        $query_ruta = ArchivosCargadosCens::where('RUTA', '=', $filename)->first();
+                        if ($query_ruta) {
+                            $mensajes[] = ["mensaje" => "El archivo ya existe", "file" => $file];
+                            break;
+                        }
+
+                        // INSTANCES
+                        $archivos_cargados_cens = new ArchivosCargadosCens();
+
+                        move_uploaded_file($tempFile, $file);
+                        switch ($mes_consolidado) {
+                            case "Enero":
+                                $id_mes = 1;
+                                break;
+                            case "Febrero":
+                                $id_mes = 2;
+                                break;
+                            case "Marzo":
+                                $id_mes = 3;
+                                break;
+                            case "Abril":
+                                $id_mes = 4;
+                                break;
+                            case "Mayo":
+                                $id_mes = 5;
+                                break;
+                            case "Junio":
+                                $id_mes = 6;
+                                break;
+                            case "Julio":
+                                $id_mes = 7;
+                                break;
+                            case "Agosto":
+                                $id_mes = 8;
+                                break;
+                            case "Septiembre":
+                                $id_mes = 9;
+                                break;
+                            case "Octubre":
+                                $id_mes = 10;
+                                break;
+                            case "Noviembre":
+                                $id_mes = 11;
+                                break;
+                            case "Diciembre":
+                                $id_mes = 12;
+                                break;
+                        }
+
+                        // SAVE FILE
+                        $archivos_cargados_cens->ANO_FACTURA = $ano_factura;
+                        $archivos_cargados_cens->ID_MES_FACTURA = $id_mes;
+                        $archivos_cargados_cens->MES_FACTURA = strtoupper($mes_consolidado);
+                        $archivos_cargados_cens->DEPARTAMENTO = strtoupper($departamento);
+                        $archivos_cargados_cens->MUNICIPIO = strtoupper($municipio);
+                        $archivos_cargados_cens->OPERADOR_RED = $operador_red;
+                        $archivos_cargados_cens->RUTA = $filename;
+                        $archivos_cargados_cens->FECHA_CREACION = $fecha_creacion;
+                        $archivos_cargados_cens->ID_USUARIO = $id_usuario;
+                        $archivos_cargados_cens->save();
+
+                        $query_filename_cens = ArchivosCargadosCens::where('RUTA', '=', $filename)->first();
+                        $id_tabla_ruta_cens = $query_filename_cens->ID_TABLA;
+
+                        $spreadsheet = $reader->load($file);
+                        $sheet_base = $spreadsheet->getSheet(0);
+                        $sheetData = $sheet_base->toArray();
+                        // DELITE 6 FIRST ROWS
+                        for ($e = 0; $e < 6; $e++) {
+                            unset($sheetData[$e]);
+                        }
+                        $i = 0;
+                        $total_facturacion = 0;
+                        $total_recaudo = 0;
+                        $total_cartera = 0;
+                        foreach ($sheetData as $row) {
+                            $id_cliente = trim($row[0]);
+                            $nombre_cliente = strtoupper(trim($row[1]));
+                            $direccion_vivienda = strtoupper(trim($row[2]));
+                            $facturacion =  (trim(str_replace(array('$', ','), '', $row[3])));
+                            $total_facturacion = $total_facturacion + $facturacion;
+                            $recaudo =  (trim(str_replace(array('$', ','), '', $row[4])));
+                            $total_recaudo = $total_recaudo + $recaudo;
+                            $cartera =  (trim(str_replace(array('$', ','), '', $row[5])));
+                            $total_cartera = $total_cartera + $cartera;
+                            $antiguedad = trim($row[6]);
+
+                            $query_select_municipio = Municipio::where('NOMBRE', '=', $municipio)->first();
+                            $id_cod_depto = $query_select_municipio->ID_DEPARTAMENTO;
+                            $id_cod_mpio = $query_select_municipio->ID_MUNICIPIO;
+
+                            // INSTANCE OF CENS TABLE
+                            $class_table_cens_name = 'FactRecaCens' . ucfirst($mes_consolidado) . $ano_factura;
+                            $class_cens = 'App\\Models\\' . $class_table_cens_name;
+                            $cens = new $class_cens;
+
+                            $cens->ID_CLIENTE = $id_cliente;
+                            $cens->NOMBRE_CLIENTE = $nombre_cliente;
+                            $cens->DIRECCION_VIVIENDA = $direccion_vivienda;
+                            $cens->ID_COD_DPTO = $id_cod_depto;
+                            $cens->ID_COD_MPIO = $id_cod_mpio;
+                            $cens->FACTURACION = $facturacion;
+                            $cens->RECAUDO = $recaudo;
+                            $cens->CARTERA = $cartera;
+                            $cens->ANTIGUEDAD = $antiguedad;
+                            $cens->ANO_PERIODO = $ano_factura;
+                            $cens->MES_PERIODO = $id_mes;
+                            $cens->ID_TABLA_RUTA = $id_tabla_ruta_cens;
+                            $cens->FECHA_CREACION = $fecha_creacion;
+                            $cens->ID_USUARIO = $id_usuario;
+                            $cens->save();
+
+                            $i++;
+                        }
+                        // FINAL FOREACH
+                        $consultas[] = DB::table($table_fact_reca_cens)
+                            ->select([
+                                DB::raw('COUNT(*) AS TOTAL'),
+                                DB::raw('SUM(FACTURACION) AS TOTAL_FACTURACION'),
+                                DB::raw('SUM(RECAUDO) AS TOTAL_RECAUDO'),
+                                DB::raw('SUM(CARTERA) AS TOTAL_CARTERA'),
+                            ])->where('ID_TABLA_RUTA', '=', $id_tabla_ruta_cens)->get();
+                        $mensajes[] = ['mensaje' => 'Archivo cargado con exito', 'file' => $file];
+                        $valores[] = ['total_facturacion' => $total_facturacion, 'total_recaudo' => $total_recaudo, 'total_cartera' => $total_cartera];
+
+                        unlink($file);
+                        $k++;
+                    }
+                    // FIN FOREACH FILES
+                    return ["resultado" => $consultas, "mensajes" => $mensajes, "elementos" => $elementos, "valores" => $valores];
+                    // FIN CASO DE CENS
+                    break;
                 case '8':
                     $operador_red = 'ELECTROHUILA';
                     foreach ($files as $archivo) {

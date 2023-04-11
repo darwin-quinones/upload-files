@@ -14,13 +14,13 @@ export default function Dashboard() {
 
     const uploadFileHandler = (event) => {
         setFiles(event.target.files);
-       };
+    };
 
-      const fileSubmitHandler = (event) => {
-       event.preventDefault();
-       setFileSize(true);
-       setFileUploadProgress(true);
-       setFileUploadResponse(null);
+    const fileSubmitHandler = (event) => {
+        event.preventDefault();
+        setFileSize(true);
+        setFileUploadProgress(true);
+        setFileUploadResponse(null);
 
         const formData = new FormData();
         var totalFilesSize = 0;
@@ -28,18 +28,18 @@ export default function Dashboard() {
         let allowedFilesNumber = 20
         for (let i = 0; i < files.length; i++) {
             var filesize = files[i].size / 1024;
-		    filesize = (Math.round((filesize / 1024) * 100) / 100);
+            filesize = (Math.round((filesize / 1024) * 100) / 100);
             totalFilesSize = totalFilesSize + filesize;
             //formData.append('files', files[i])
             formData.append(files[i].name, files[i])
         }
         console.log(totalFilesSize)
-        if (totalFilesSize > allowedFilesSize){
+        if (totalFilesSize > allowedFilesSize) {
             setFileSize(false);
             setFileUploadProgress(false);
             setFileUploadResponse(null);
             return;
-        }if(files.length > allowedFilesNumber) {
+        } if (files.length > allowedFilesNumber) {
             setFilesNumber(false)
             setFileUploadProgress(false);
             setFileUploadResponse(null);
@@ -49,7 +49,7 @@ export default function Dashboard() {
             method: 'POST',
             body: formData
         };
-        fetch(FILE_UPLOAD_BASE_ENDPOINT+'/file-upload', requestOptions)
+        fetch(FILE_UPLOAD_BASE_ENDPOINT + '/file-upload', requestOptions)
             .then(async response => {
                 const isJson = response.headers.get('content-type')?.includes('application/json');
                 const data = isJson && await response.json();
@@ -62,25 +62,25 @@ export default function Dashboard() {
                     return Promise.reject(error);
                 }
 
-               console.log(data.message);
-               setFileUploadResponse(data.message);
+                console.log(data.message);
+                setFileUploadResponse(data.message);
             })
             .catch(error => {
                 console.error('Error while uploading file!', error);
             });
         setFileUploadProgress(false);
-      };
+    };
 
-    return(
+    return (
 
-      <form onSubmit={fileSubmitHandler}>
-         <input type="file"  multiple onChange={uploadFileHandler}/>
-         <button type='submit'>Upload</button>
-         {!fileSize && <p style={{color:'red'}}>File size exceeded!!</p>}
-         {!filesNumber && <p style={{color:'red'}}>Files Number exceeded!!</p>}
-         {fileUploadProgress && <p style={{color:'red'}}>Uploading File(s)</p>}
-        {fileUploadResponse!=null && <p style={{color:'green'}}>{fileUploadResponse}</p>}
-      </form>
+        <form onSubmit={fileSubmitHandler}>
+            <input type="file" multiple onChange={uploadFileHandler} />
+            <button type='submit'>Upload</button>
+            {!fileSize && <p style={{ color: 'red' }}>File size exceeded!!</p>}
+            {!filesNumber && <p style={{ color: 'red' }}>Files Number exceeded!!</p>}
+            {fileUploadProgress && <p style={{ color: 'red' }}>Uploading File(s)</p>}
+            {fileUploadResponse != null && <p style={{ color: 'green' }}>{fileUploadResponse}</p>}
+        </form>
 
     );
 }
