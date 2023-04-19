@@ -2266,12 +2266,30 @@ class FileController extends Controller
         }
     }
 
+    public function store(Request $request)
+    {
+        Validator::make($request->all(), [
+            'title' => ['required'],
+            'file' => ['required'],
+        ])->validate();
+
+        $fileName = time().'.'.$request->file->extension();
+        $request->file->move(public_path('uploads'), $fileName);
+
+        File::create([
+            'title' => $request->title,
+            'name' => $fileName
+        ]);
+
+        return redirect()->route('file.upload');
+    }
+
     /**
      * Show the form for creating a new resource.
      *
      * @return Response
      */
-    public function store(Request $request)
+    public function store2(Request $request)
     {
 
         function stripAccent($str)

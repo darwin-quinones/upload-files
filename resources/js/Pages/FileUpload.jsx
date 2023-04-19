@@ -1,143 +1,126 @@
-import '../bootstrap';
-import '../../css/app.css';
+import React from 'react';
+import Authenticated from '@/Layouts/AuthenticatedLayout';
+import { Head, useForm, usePage, Link } from '@inertiajs/inertia-react';
 
-import React, { useState, useEffect } from "react";
+export default function Dashboard(props) {
+    const { files } = usePage().props
 
-export default function Dashboard() {
-    const [files, setFiles] = useState('');
-    //state for checking file size
-    const [fileSize, setFileSize] = useState(true);
-    const [filesNumber, setFilesNumber] = useState(true)
-    let [totalFilesSize, setTotalFilesSize] = useState(0)
-    let allowedFilesSize = 50
-    let [progress, setProgress] = useState(0)
-    let [elapsedTime, setElapsedTime] = useState(0)
-    // let [canCalculateTime, setCancalculateTime] = useState(true)
-    let canCalculateTime = true
-    let [calculateTotalFileSize, setCalculateTotalFileSize] = useState(0.1)
-    //base end point url
-    const FILE_UPLOAD_BASE_ENDPOINT = "http://localhost:8000";
+    const { data, setData, errors, post, progress } = useForm({
+        title: "",
+        file: null,
+    });
 
-    const uploadFileHandler = (event) => {
-        setFiles(event.target.files);
-    };
+    function handleSubmit(e) {
+        e.preventDefault();
+        post(route("file.upload.store"));
 
-    const getColor = () => {
-        if (progress < 40) {
-            return '#ff0000'
-        } else if (progress < 70) {
-            return '#ffa500'
-        } else {
-            return '#2ecc71'
-        }
-    }
-
-    const fileSubmitHandler = (event) => {
-        event.preventDefault();
-        setFileSize(true);
-        setProgress(1)
-
-        const formData = new FormData();
-
-        //let allowedFilesSize = 50 // 10 MB
-        let allowedFilesNumber = 20
-        for (let i = 0; i < files.length; i++) {
-            var filesize = files[i].size / 1024;
-            filesize = (Math.round((filesize / 1024) * 100) / 100);
-            setCalculateTotalFileSize(calculateTotalFileSize = calculateTotalFileSize + filesize);
-            //console.log('calculateTotalFileSize: ', calculateTotalFileSize)
-            //formData.append('files', files[i])
-            formData.append(files[i].name, files[i])
-        }
-        setTotalFilesSize(20)
-        if (totalFilesSize > allowedFilesSize) {
-            setFileSize(false);
-            return;
-        } if (files.length > allowedFilesNumber) {
-            setFilesNumber(false)
-        }
-        const requestOptions = {
-            method: 'POST',
-            body: formData
-        };
-        fetch(FILE_UPLOAD_BASE_ENDPOINT + '/file-upload', requestOptions)
-            .then(async response => {
-                // const isJson = response.headers.get('content-type')?.includes('application/json');
-                const data = await response.json();
-                console.log(response.ok);
-                // check for error response
-                if (response.ok && data) {
-                    // console.log('cambiar el estado: ', data);
-                    setProgress(100)
-                    console.log('canCalculateTime', canCalculateTime)
-                    canCalculateTime = false
-                    console.log('canCalculateTime', canCalculateTime)
-                    alert('archivo cargado con exito')
-                }
-                if (!response.ok) {
-                    // get error message
-                    const error = (data && data.message) || response.status;
-                    return Promise.reject(error);
-
-                }
-            })
-            .catch(error => {
-                canCalculateTime = false
-                setProgress(0)
-                console.error('Error while uploading file!', error);
-            })
-
-
-        setInterval(() => {
-            if (canCalculateTime) {
-                console.log('canCalculateTime: ', canCalculateTime)
-
-                setElapsedTime(elapsedTime = elapsedTime + 5)
-                // let megasBySeconds = allowedFilesSize / estimatedTimeToUploadFile
-                let megasBySeconds = 0.061714285714 // uploads 0.061714285714 per
-                let megaBytesUploaded = elapsedTime * megasBySeconds
-                let percent = parseInt(megaBytesUploaded / calculateTotalFileSize * 100)
-                if (percent < 98) {
-                    setProgress(percent)
-                } else {
-                    setProgress(98)
-                }
-                // percent = calculatePercent - 100
-
-
-                // console.log('totalFilesSize: ', totalFilesSize)
-                console.log('percent: ', percent)
-                console.log('megaBytesUploaded', megaBytesUploaded)
-                console.log('calculateTotalFileSize: ', calculateTotalFileSize)
-                console.log('megasBySeconds: ', megasBySeconds)
-                console.log('elapsedTime: ', elapsedTime)
-                // console.log('progress: ', progress)
-
-                console.log('allowedFilesSize: ', allowedFilesSize)
-            } else {
-                return;
-            }
-
-        }, 1000)
-
-
-
+        setData("title", "")
+        setData("file", null)
     }
 
     return (
+        <Authenticated
+            auth={props.auth}
+            errors={props.errors}
+            header={<h2 className="font-semibold text-xl text-gray-800 leading-tight">Laravel React JS File Upload Example - ItSolutionStuff.com</h2>}
+        >
+            <Head title="Posts" />
 
-        <form onSubmit={fileSubmitHandler}>
-            <input type="file" multiple onChange={uploadFileHandler} />
-            <button type='submit'>Upload</button>
-            {!fileSize && <p style={{ color: 'red' }}>File size exceeded!!</p>}
-            {!filesNumber && <p style={{ color: 'red' }}>Files Number exceeded!!</p>}
+            <div className="py-12">
+                <div className="max-w-7xl mx-auto sm:px-6 lg:px-8">
+                    <div className="bg-white overflow-hidden shadow-sm sm:rounded-lg">
+                        <div className="p-6 bg-white border-b border-gray-200">
 
-            <div className="progress-bar">
-                <div className="progress-bar-fill" style={{ width: `${progress}%`, backgroundColor: getColor() }}></div>
+                            <form name="createForm" onSubmit={handleSubmit}>
+                                <div className="flex flex-col">
+                                    <div className="mb-4">
+                                        <label className="">Title</label>
+                                        <input
+                                            type="text"
+                                            className="w-full px-4 py-2"
+                                            label="Title"
+                                            name="title"
+                                            value={data.title}
+                                            onChange={(e) =>
+                                                setData("title", e.target.value)
+                                            }
+                                        />
+                                        <span className="text-red-600">
+                                            {errors.title}
+                                        </span>
+                                    </div>
+                                    <div className="mb-0">
+                                        <label className="">File</label>
+                                        <input
+                                            type="file"
+                                            className="w-full px-4 py-2"
+                                            label="File"
+                                            name="file"
+                                            onChange={(e) =>
+                                                setData("file", e.target.files[0])
+                                            }
+                                        />
+                                        <span className="text-red-600">
+                                            {errors.file}
+                                        </span>
+                                    </div>
+                                </div>
+
+                                {progress && (
+                                  <div className="w-full bg-gray-200 rounded-full dark:bg-gray-700">
+                                    <div className="bg-blue-600 text-xs font-medium text-blue-100 text-center p-0.5 leading-none rounded-full" width={progress.percentage}> {progress.percentage}%</div>
+                                  </div>
+                                )}
+
+                                <div className="mt-4">
+                                    <button
+                                        type="submit"
+                                        className="px-6 py-2 font-bold text-white bg-green-500 rounded"
+                                    >
+                                        Save
+                                    </button>
+                                </div>
+                            </form>
+
+                            <br/>
+
+                            <h1>Uploaded File List:</h1>
+                            <table className="table-fixed w-full">
+                                <thead>
+                                    <tr className="bg-gray-100">
+                                        <th className="px-4 py-2 w-20">No.</th>
+                                        <th className="px-4 py-2">Title</th>
+                                        <th className="px-4 py-2">Image</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {files.map(({ id, title, name }) => (
+                                        <tr>
+                                            <td className="border px-4 py-2">{ id }</td>
+                                            <td className="border px-4 py-2">{ title }</td>
+                                            <td className="border px-4 py-2">
+                                                <img src={name} width="200px" />
+                                            </td>
+                                        </tr>
+                                    ))}
+
+                                    {files.length === 0 && (
+                                        <tr>
+                                            <td
+                                                className="px-6 py-4 border-t"
+                                                colSpan="4"
+                                            >
+                                                No contacts found.
+                                            </td>
+                                        </tr>
+                                    )}
+                                </tbody>
+                            </table>
+
+                        </div>
+                    </div>
+                </div>
             </div>
-            <div className="progress-label">{progress}%</div>
-
-        </form>
-
+        </Authenticated>
     );
 }
