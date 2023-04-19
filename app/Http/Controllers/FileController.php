@@ -12,7 +12,6 @@ use App\Models\ArchivosCargadosFacturacion;
 use App\Models\ArchivosCargadosRecaudo;
 use App\Models\ArchivosCargadosRefacturacion;
 use App\Models\ArchivosCargadosCens;
-use App\Models\CatastroAgosto2022;
 use App\Models\Tarifa;
 use App\Models\TarifaAire;
 use App\Models\Corregimiento;
@@ -24,13 +23,10 @@ use App\Models\TipoCliente;
 use App\Models\TipoClienteAire;
 use App\Models\TipoClienteElectrohuila;
 use App\Models\TipoConceptoAire;
+use App\Models\TipoServicio;
 
 // LIBRERIA PHP SPREADSHEET
 require '../vendor/autoload.php';
-
-use PhpOffice\PhpSpreadsheet\Spreadsheet;
-
-
 
 
 class FileController extends Controller
@@ -45,6 +41,17 @@ class FileController extends Controller
     {
         $files = File::latest()->get();
         return Inertia::render('FileUpload', compact('files'));
+    }
+    public function fileProgressBar(){
+        return Inertia::render('FileProgressBar');
+    }
+    public function fileUploadProgressBar(Request $request){
+        $file = $request->file('file');
+
+        // Do something with the uploaded file...
+
+        return response()->json(['success' => true]);
+
     }
 
     /**
@@ -81,22 +88,22 @@ class FileController extends Controller
             // }
             $k = 0;
             $files = $request->files;
-            $cod_operador_red = '9';
+            $cod_operador_red = '6';
             $consultas = array();
             $elementos = array();
             $valores = array();
 
-            // $mes_consolidado = 'Agosto';
-            // $ano_factura = '2022';
-            $mes_consolidado = 'Enero';
-            $ano_factura = '2023';
+            $mes_consolidado = 'Agosto';
+            $ano_factura = '2022';
+            $id_usuario = 1;
+            // $mes_consolidado = 'Enero';
+            // $ano_factura = '2023';
             // TABLES OF QUERIES
             $table_catastro = "catastro_" . strtolower($mes_consolidado) . $ano_factura . "_2";
             $table_facturacion = "facturacion_" . strtolower($mes_consolidado) . $ano_factura . "_2";
             $table_recaudo = "recaudo_" . strtolower($mes_consolidado) . $ano_factura . "_2";
             $table_refacturacion = "refacturacion_" . strtolower($mes_consolidado) . $ano_factura . "_2";
-            $table_fact_reca_cens = "fact_reca_cens_" . strtolower($mes_consolidado). "_" . $ano_factura . "_2";
-
+            $table_fact_reca_cens = "fact_reca_cens_" . strtolower($mes_consolidado) . "_" . $ano_factura . "_2";
 
             switch ($cod_operador_red) {
                     // CASO DE CENS
@@ -110,7 +117,7 @@ class FileController extends Controller
                         $filepath = public_path('uploads/');
                         $file = $filepath . $filename;
                         $fecha_creacion = date('Y-m-d');
-                        $id_usuario = 1;
+
 
                         $id_tipo_poblacion = 1;
 
@@ -208,28 +215,24 @@ class FileController extends Controller
                             $query_select_municipio = Municipio::where('NOMBRE', '=', $municipio)->first();
                             $id_cod_depto = $query_select_municipio->ID_DEPARTAMENTO;
                             $id_cod_mpio = $query_select_municipio->ID_MUNICIPIO;
-
-                            // INSTANCE OF CENS TABLE
-                            $class_table_cens_name = 'FactRecaCens' . ucfirst($mes_consolidado) . $ano_factura;
-                            $class_cens = 'App\\Models\\' . $class_table_cens_name;
-                            $cens = new $class_cens;
-
-                            $cens->ID_CLIENTE = $id_cliente;
-                            $cens->NOMBRE_CLIENTE = $nombre_cliente;
-                            $cens->DIRECCION_VIVIENDA = $direccion_vivienda;
-                            $cens->ID_COD_DPTO = $id_cod_depto;
-                            $cens->ID_COD_MPIO = $id_cod_mpio;
-                            $cens->FACTURACION = $facturacion;
-                            $cens->RECAUDO = $recaudo;
-                            $cens->CARTERA = $cartera;
-                            $cens->ANTIGUEDAD = $antiguedad;
-                            $cens->ANO_PERIODO = $ano_factura;
-                            $cens->MES_PERIODO = $id_mes;
-                            $cens->ID_TABLA_RUTA = $id_tabla_ruta_cens;
-                            $cens->FECHA_CREACION = $fecha_creacion;
-                            $cens->ID_USUARIO = $id_usuario;
-                            $cens->save();
-
+                            // SAVE INFO
+                            $values = array(
+                                'ID_CLIENTE' => $id_cliente,
+                                'NOMBRE_CLIENTE' => $nombre_cliente,
+                                'DIRECCION_VIVIENDA' => $direccion_vivienda,
+                                'ID_COD_DPTO' => $id_cod_depto,
+                                'ID_COD_MPIO' => $id_cod_mpio,
+                                'FACTURACION' => $facturacion,
+                                'RECAUDO' => $recaudo,
+                                'CARTERA' => $cartera,
+                                'ANTIGUEDAD' => $antiguedad,
+                                'ANO_PERIODO' => $ano_factura,
+                                'MES_PERIODO' => $id_mes,
+                                'ID_TABLA_RUTA' => $id_tabla_ruta_cens,
+                                'FECHA_CREACION' => $fecha_creacion,
+                                'ID_USUARIO' => $id_usuario,
+                            );
+                            DB::table($table_fact_reca_cens)->insert($values);
                             $i++;
                         }
                         // FINAL FOREACH
@@ -270,7 +273,7 @@ class FileController extends Controller
 
 
 
-                        $query_ruta = DB::table('archivos_cargados_catastro_2')->where('RUTA', '=', $filename)->first();
+                        $query_ruta = ArchivosCargadosCatastro::where('RUTA', '=', $filename)->first();
                         if ($query_ruta) {
                             $mensajes[] = ["mensaje" => "El archivo ya existe", "file" => $file];
                             break;
@@ -329,12 +332,12 @@ class FileController extends Controller
                         $archivos_catastro->OPERADOR_RED = $operador_red;
                         $archivos_catastro->RUTA = $filename;
                         $archivos_catastro->FECHA_CREACION = $fecha_creacion;
-                        $archivos_catastro->ID_USUARIO = 1;
+                        $archivos_catastro->ID_USUARIO = $id_usuario;
                         $archivos_catastro->save();
-                        $query_filename_catastro = DB::table('archivos_cargados_catastro_2')->where('RUTA', '=', $filename)->first();
+                        $query_filename_catastro = ArchivosCargadosCatastro::where('RUTA', '=', $filename)->first();
                         $id_tabla_ruta_catastro = $query_filename_catastro->ID_TABLA;
 
-                        // SE GURADA EL ARCHIVO CATASTRO
+                        // SE GURADA EL ARCHIVO CAT
                         $archivos_facturacion->ANO_FACTURA = $ano_factura;
                         $archivos_facturacion->ID_MES_FACTURA = $id_mes;
                         $archivos_facturacion->MES_FACTURA = $mes_factura;
@@ -343,9 +346,9 @@ class FileController extends Controller
                         $archivos_facturacion->OPERADOR_RED = $operador_red;
                         $archivos_facturacion->RUTA = $filename;
                         $archivos_facturacion->FECHA_CREACION = $fecha_creacion;
-                        $archivos_facturacion->ID_USUARIO = 1;
+                        $archivos_facturacion->ID_USUARIO = $id_usuario;
                         $archivos_facturacion->save();
-                        $query_filename_facturacion = DB::table('archivos_cargados_facturacion_2')->where('RUTA', '=', $filename)->first();
+                        $query_filename_facturacion = ArchivosCargadosFacturacion::where('RUTA', '=', $filename)->first();
                         $id_tabla_ruta_facturacion = $query_filename_facturacion->ID_TABLA;
 
                         // SE GURADA EL ARCHIVO CATASTRO
@@ -357,9 +360,9 @@ class FileController extends Controller
                         $archivos_recaudo->OPERADOR_RED = $operador_red;
                         $archivos_recaudo->RUTA = $filename;
                         $archivos_recaudo->FECHA_CREACION = $fecha_creacion;
-                        $archivos_recaudo->ID_USUARIO = 1;
+                        $archivos_recaudo->ID_USUARIO = $id_usuario;
                         $archivos_recaudo->save();
-                        $query_filename_recaudo = DB::table('archivos_cargados_recaudo_2')->where('RUTA', '=', $filename)->first();
+                        $query_filename_recaudo = ArchivosCargadosRecaudo::where('RUTA', '=', $filename)->first();
                         $id_tabla_ruta_recaudo = $query_filename_recaudo->ID_TABLA;
 
 
@@ -377,20 +380,6 @@ class FileController extends Controller
                         $total_importe_trans_fact = 0;
                         $total_valor_recibo = 0;
                         foreach ($sheetData as $row) {
-                            // INSTANCE OF CATASTRO
-                            $class_catastro_name = 'Catastro' . ucfirst($mes_consolidado) . $ano_factura;
-                            $class_catastro = 'App\\Models\\' . $class_catastro_name;
-                            $catastro = new $class_catastro;
-
-                            // INSTANCE OF FACTURACION
-                            $class_facturacion_name = 'Facturacion' . ucfirst($mes_consolidado) . $ano_factura;
-                            $class_facturacion = 'App\\Models\\' . $class_facturacion_name;
-                            $facturacion = new $class_facturacion;
-
-                            // INSTANCE OF RECAUDO
-                            $class_recaudo_name = 'Recaudo' . ucfirst($mes_consolidado) . $ano_factura;
-                            $class_recaudo = 'App\\Models\\' . $class_recaudo_name;
-                            $recaudo = new $class_recaudo;
 
                             $id_tipo_servicio = 1;
                             $nombre_tarifa = strtoupper(str_replace(" ", "_", trim($row[10]))); //ESTRATO_1
@@ -429,26 +418,28 @@ class FileController extends Controller
                             $total_deuda_cuota = $total_deuda_cuota + $deuda_cuota;
 
                             // REGISTRO EN LA TABLA DE CATASTRO
-                            $catastro->ID_TIPO_SERVICIO = $id_tipo_servicio;
-                            $catastro->ID_TARIFA = $id_tarifa;
-                            $catastro->NIC = $nic;
-                            $catastro->NIS = $nis;
-                            $catastro->NOMBRE_PROPIETARIO = $nombre_propietario;
-                            $catastro->DIRECCION_VIVIENDA = $direccion_vivienda;
-                            $catastro->CONSUMO_FACTURADO = $consumo_facturado;
-                            $catastro->ID_COD_DPTO = $id_departamento;
-                            $catastro->ID_COD_MPIO = $id_municipio;
-                            $catastro->ID_COD_CORREG = $id_corregimiento;
-                            $catastro->DEUDA_CORRIENTE = $deuda_corriente;
-                            $catastro->DEUDA_CUOTA = $deuda_cuota;
-                            $catastro->ID_ESTADO_SUMINISTRO = $id_estado_suministro;
-                            $catastro->ANO_CATASTRO = $ano_factura;
-                            $catastro->MES_CATASTRO = $id_mes;
-                            $catastro->ID_TABLA_RUTA = $id_tabla_ruta_catastro;
-                            $catastro->FECHA_CREACION = $fecha_creacion;
-                            $catastro->ID_USUARIO = 1;
-                            $catastro->OPERADOR_RED = $operador_red;
-                            $catastro->save();
+                            $catastro_values = array(
+                                'ID_TIPO_SERVICIO' => $id_tipo_servicio,
+                                'ID_TARIFA' => $id_tarifa,
+                                'NIC' => $nic,
+                                'NIS' => $nis,
+                                'NOMBRE_PROPIETARIO' => $nombre_propietario,
+                                'DIRECCION_VIVIENDA' => $direccion_vivienda,
+                                'CONSUMO_FACTURADO' => $consumo_facturado,
+                                'ID_COD_DPTO' => $id_departamento,
+                                'ID_COD_MPIO' => $id_municipio,
+                                'ID_COD_CORREG' => $id_corregimiento,
+                                'DEUDA_CORRIENTE' => $deuda_corriente,
+                                'DEUDA_CUOTA' => $deuda_cuota,
+                                'ID_ESTADO_SUMINISTRO' => $id_estado_suministro,
+                                'ANO_CATASTRO' => $ano_factura,
+                                'MES_CATASTRO' => $id_mes,
+                                'ID_TABLA_RUTA' => $id_tabla_ruta_catastro,
+                                'FECHA_CREACION' => $fecha_creacion,
+                                'ID_USUARIO' => $id_usuario,
+                                'OPERADOR_RED' => $operador_red
+                            );
+                            DB::table($table_catastro)->insert($catastro_values);
 
                             // REGISTRO TABLA FACTURACION
                             $cod_oper_cont = 0;
@@ -475,65 +466,70 @@ class FileController extends Controller
                             $simbolo_variable = 0;
                             $consumo_kwh = trim($row[14]);
 
-                            $facturacion->FECHA_PROC_REG = $fecha_proc_reg;
-                            $facturacion->COD_OPER_CONT = $cod_oper_cont;
-                            $facturacion->NIC = $nic;
-                            $facturacion->NIS = $nis;
-                            $facturacion->SEC_NIS = $sec_nis;
-                            $facturacion->SEC_REC = $sec_rec;
-                            $facturacion->FECHA_FACT_LECT = $fecha_fact_lect;
-                            $facturacion->ID_TIPO_CLIENTE = $id_tipo_cliente;
-                            $facturacion->ID_TARIFA = $id_tarifa;
-                            $facturacion->ID_ESTADO_CONTRATO = $id_estado_contrato;
-                            $facturacion->CONCEPTO = $concepto;
-                            $facturacion->IMPORTE_TRANS = $importe_trans_fact;
-                            $facturacion->FECHA_TRANS = $fecha_trans;
-                            $facturacion->VALOR_RECIBO = $valor_recibo;
-                            $facturacion->ID_SECTOR_DPTO = $id_sector_dpto;
-                            $facturacion->ID_COD_MPIO = $id_cod_mpio;
-                            $facturacion->ID_COD_CORREG = $id_cod_correg;
-                            $facturacion->ID_COD_DPTO = $id_cod_depto;
-                            $facturacion->SIMBOLO_VARIABLE = $simbolo_variable;
-                            $facturacion->CONSUMO_KWH = $consumo_kwh;
-                            $facturacion->ID_TIPO_POBLACION = $id_tipo_poblacion;
-                            $facturacion->ANO_FACTURA = $ano_factura;
-                            $facturacion->MES_FACTURA = $id_mes;
-                            $facturacion->ID_TABLA_RUTA = $id_tabla_ruta_facturacion;
-                            $facturacion->FECHA_CREACION = $fecha_creacion;
-                            $facturacion->ID_USUARIO = 1;
-                            $facturacion->OPERADOR_RED = $operador_red;
-                            $facturacion->save();
+                            $facturacion_values = array(
+                                'FECHA_PROC_REG' => $fecha_proc_reg,
+                                'COD_OPER_CONT' => $cod_oper_cont,
+                                'NIC' => $nic,
+                                'NIS' => $nis,
+                                'SEC_NIS' => $sec_nis,
+                                'SEC_REC' => $sec_rec,
+                                'FECHA_FACT_LECT' => $fecha_fact_lect,
+                                'ID_TIPO_CLIENTE' => $id_tipo_cliente,
+                                'ID_TARIFA' => $id_tarifa,
+                                'ID_ESTADO_CONTRATO' => $id_estado_contrato,
+                                'CONCEPTO' => $concepto,
+                                'IMPORTE_TRANS' => $importe_trans_fact,
+                                'FECHA_TRANS' => $fecha_trans,
+                                'VALOR_RECIBO' => $valor_recibo,
+                                'ID_SECTOR_DPTO' => $id_sector_dpto,
+                                'ID_COD_MPIO' => $id_cod_mpio,
+                                'ID_COD_CORREG' => $id_cod_correg,
+                                'ID_COD_DPTO' => $id_cod_depto,
+                                'SIMBOLO_VARIABLE' => $simbolo_variable,
+                                'CONSUMO_KWH' => $consumo_kwh,
+                                'ID_TIPO_POBLACION' => $id_tipo_poblacion,
+                                'ANO_FACTURA' => $ano_factura,
+                                'MES_FACTURA' => $id_mes,
+                                'ID_TABLA_RUTA' => $id_tabla_ruta_facturacion,
+                                'FECHA_CREACION' => $fecha_creacion,
+                                'ID_USUARIO' => $id_usuario,
+                                'OPERADOR_RED' => $operador_red,
+                            );
+                            DB::table($table_facturacion)->insert($facturacion_values);
 
                             $importe_trans_reca = $row[22];
                             $total_importe_trans_reca = $total_importe_trans_reca + $importe_trans_reca;
 
-                            $recaudo->FECHA_PROC_REG = $fecha_proc_reg;
-                            $recaudo->COD_OPER_CONT = $cod_oper_cont;
-                            $recaudo->NIC = $nic;
-                            $recaudo->NIS = $nis;
-                            $recaudo->SEC_NIS = $sec_nis;
-                            $recaudo->SEC_REC = $sec_rec;
-                            $recaudo->FECHA_FACT_LECT = $fecha_fact_lect;
-                            $recaudo->ID_TIPO_CLIENTE = $id_tipo_cliente;
-                            $recaudo->ID_TARIFA = $id_tarifa;
-                            $recaudo->ID_ESTADO_CONTRATO = $id_estado_contrato;
-                            $recaudo->CONCEPTO = $concepto;
-                            $recaudo->IMPORTE_TRANS = $importe_trans_reca;
-                            $recaudo->FECHA_TRANS = $fecha_trans;
-                            $recaudo->VALOR_RECIBO = $valor_recibo;
-                            $recaudo->ID_SECTOR_DPTO = $id_sector_dpto;
-                            $recaudo->ID_COD_MPIO = $id_cod_mpio;
-                            $recaudo->ID_COD_CORREG = $id_cod_correg;
-                            $recaudo->ID_COD_DPTO = $id_cod_depto;
-                            $recaudo->SIMBOLO_VARIABLE = $simbolo_variable;
-                            $recaudo->ID_TIPO_POBLACION = $id_tipo_poblacion;
-                            $recaudo->ANO_FACTURA = $ano_factura;
-                            $recaudo->MES_FACTURA = $id_mes;
-                            $recaudo->ID_TABLA_RUTA = $id_tabla_ruta_recaudo;
-                            $recaudo->FECHA_CREACION = $fecha_creacion;
-                            $recaudo->ID_USUARIO = 1;
-                            $recaudo->OPERADOR_RED = $operador_red;
-                            $recaudo->save();
+                            $recaudo_values = array(
+                                'FECHA_PROC_REG' => $fecha_proc_reg,
+                                'COD_OPER_CONT' => $cod_oper_cont,
+                                'NIC' => $nic,
+                                'NIS' => $nis,
+                                'SEC_NIS' => $sec_nis,
+                                'SEC_REC' => $sec_rec,
+                                'FECHA_FACT_LECT' => $fecha_fact_lect,
+                                'ID_TIPO_CLIENTE' => $id_tipo_cliente,
+                                'ID_TARIFA' => $id_tarifa,
+                                'ID_ESTADO_CONTRATO' => $id_estado_contrato,
+                                'CONCEPTO' => $concepto,
+                                'IMPORTE_TRANS' => $importe_trans_reca,
+                                'FECHA_TRANS' => $fecha_trans,
+                                'VALOR_RECIBO' => $valor_recibo,
+                                'ID_SECTOR_DPTO' => $id_sector_dpto,
+                                'ID_COD_MPIO' => $id_cod_mpio,
+                                'ID_COD_CORREG' => $id_cod_correg,
+                                'ID_COD_DPTO' => $id_cod_depto,
+                                'SIMBOLO_VARIABLE' => $simbolo_variable,
+                                'ID_TIPO_POBLACION' => $id_tipo_poblacion,
+                                'ANO_FACTURA' => $ano_factura,
+                                'MES_FACTURA' => $id_mes,
+                                'ID_TABLA_RUTA' => $id_tabla_ruta_recaudo,
+                                'FECHA_CREACION' => $fecha_creacion,
+                                'ID_USUARIO' => $id_usuario,
+                                'OPERADOR_RED' => $operador_red,
+                            );
+
+                            DB::table($table_recaudo)->insert($recaudo_values);
                             $i++;
                         }
                         // FINAL FOREACH SHEETDATA
@@ -590,7 +586,7 @@ class FileController extends Controller
                         switch ($iniciales_archivo) {
                             case 'CATA':
 
-                                $query_ruta = DB::table('archivos_cargados_catastro_2')->where('RUTA', '=', $filename)->first();
+                                $query_ruta = ArchivosCargadosCatastro::where('RUTA', '=', $filename)->first();
 
                                 if ($query_ruta) {
                                     $mensajes[] = ["mensaje" => "El archivo ya existe", "file" => $file];
@@ -647,10 +643,10 @@ class FileController extends Controller
                                 $result->OPERADOR_RED = $operador_red;
                                 $result->RUTA = $filename;
                                 $result->FECHA_CREACION = $fecha_creacion;
-                                $result->ID_USUARIO = 1;
+                                $result->ID_USUARIO = $id_usuario;
                                 $result->save();
 
-                                $query_filename = DB::table('archivos_cargados_catastro_2')->where('RUTA', '=', $filename)->first();
+                                $query_filename = ArchivosCargadosCatastro::where('RUTA', '=', $filename)->first();
                                 $id_tabla_ruta = $query_filename->ID_TABLA;
 
                                 $total_deuda_corriente = 0;
@@ -661,12 +657,6 @@ class FileController extends Controller
 
                                 unset($data[0]);
                                 foreach ($data as $lines) {
-                                    // INSTANCES
-                                    // INSTANCE OF CATASTRO
-                                    $class_catastro_name = 'Catastro' . ucfirst($mes_consolidado) . $ano_factura;
-                                    $class_catastro = 'App\\Models\\' . $class_catastro_name;
-                                    $catastro = new $class_catastro;
-
                                     $corregimiento = new Corregimiento();
                                     $suministro = new EstadoSuministro();
 
@@ -706,7 +696,7 @@ class FileController extends Controller
 
                                     $nombre_municipio =   strtoupper(str_replace("_", " ", utf8_decode(trim($row[$i][11]))));
 
-                                    $query_municipio = DB::table('municipios_2')->where('NOMBRE', '=', $nombre_municipio)->first();
+                                    $query_municipio = Municipio::where('NOMBRE', '=', $nombre_municipio)->first();
                                     $id_departamento = $query_municipio->ID_DEPARTAMENTO;
                                     $id_municipio = $query_municipio->ID_MUNICIPIO;
 
@@ -718,7 +708,7 @@ class FileController extends Controller
                                             ->where('ID_MUNICIPIO', '=', $id_municipio)->where('NOMBRE', '=', 'SIN_NOMBRE')->first();
                                         $id_corregimiento = $query_corregimeinto_sin_nombre->ID_TABLA;
                                     } else {
-                                        $query_corregimiento = DB::table('corregimientos_2')->where('ID_DEPARTAMENTO', '=', $id_departamento)->where('ID_MUNICIPIO', '=', $id_municipio)->where('NOMBRE', '=', $nombre_corregimiento)->first();
+                                        $query_corregimiento = Corregimiento::where('ID_DEPARTAMENTO', '=', $id_departamento)->where('ID_MUNICIPIO', '=', $id_municipio)->where('NOMBRE', '=', $nombre_corregimiento)->first();
 
                                         // SI NO ENCUENTRA CORREGIMIENTO LO AGREGAMOS
                                         if ($query_corregimiento) {
@@ -747,7 +737,7 @@ class FileController extends Controller
                                     $deuda_cuota = trim(str_replace(",", ".", $row[$i][14]));
 
                                     $estado_suministro = strtoupper(stripAccents(trim(utf8_encode($row[$i][15]))));
-                                    $query_estado_suministro = DB::table('estados_suministro_2')->where('NOMBRE', '=', $estado_suministro)->first();
+                                    $query_estado_suministro = EstadoSuministro::where('NOMBRE', '=', $estado_suministro)->first();
                                     if ($query_estado_suministro) {
                                         $id_estado_suministro = $query_estado_suministro->ID_ESTADO_SUMINISTRO;
                                     } else {
@@ -763,27 +753,29 @@ class FileController extends Controller
                                     $total_deuda_corriente = $total_deuda_corriente + $deuda_corriente;
                                     $total_deuda_cuota = $total_deuda_cuota + $deuda_cuota;
 
-                                    $catastro->ID_TIPO_SERVICIO = $id_tipo_servicio;
-                                    $catastro->ID_TARIFA = $id_tarifa;
-                                    $catastro->NIC = $nic;
-                                    $catastro->NIS = $nis;
-                                    $catastro->NOMBRE_PROPIETARIO = $nombre_propietario;
-                                    $catastro->DIRECCION_VIVIENDA = $direccion_vivienda;
-                                    $catastro->CONSUMO_FACTURADO = $consumo_facturado;
-                                    $catastro->ID_COD_DPTO = $id_departamento;
-                                    $catastro->ID_COD_MPIO = $id_municipio;
-                                    $catastro->ID_COD_CORREG = $id_corregimiento;
-                                    $catastro->DEUDA_CORRIENTE = $deuda_corriente;
-                                    $catastro->DEUDA_CUOTA = $deuda_cuota;
-                                    $catastro->ID_ESTADO_SUMINISTRO = $id_estado_suministro;
-                                    $catastro->ANO_CATASTRO = $ano_factura;
-                                    $catastro->MES_CATASTRO = $id_mes;
-                                    $catastro->ID_TABLA_RUTA = $id_tabla_ruta;
-                                    $catastro->FECHA_CREACION = $fecha_creacion;
-                                    $catastro->ID_USUARIO = 1;
-                                    $catastro->OPERADOR_RED = $operador_red;
-                                    $catastro->save();
+                                    $catastro_values = array(
+                                        'ID_TIPO_SERVICIO' => $id_tipo_servicio,
+                                        'ID_TARIFA' => $id_tarifa,
+                                        'NIC' => $nic,
+                                        'NIS' => $nis,
+                                        'NOMBRE_PROPIETARIO' => $nombre_propietario,
+                                        'DIRECCION_VIVIENDA' => $direccion_vivienda,
+                                        'CONSUMO_FACTURADO' => $consumo_facturado,
+                                        'ID_COD_DPTO' => $id_departamento,
+                                        'ID_COD_MPIO' => $id_municipio,
+                                        'ID_COD_CORREG' => $id_corregimiento,
+                                        'DEUDA_CORRIENTE' => $deuda_corriente,
+                                        'DEUDA_CUOTA' => $deuda_cuota,
+                                        'ID_ESTADO_SUMINISTRO' => $id_estado_suministro,
+                                        'ANO_CATASTRO' => $ano_factura,
+                                        'MES_CATASTRO' => $id_mes,
+                                        'ID_TABLA_RUTA' => $id_tabla_ruta,
+                                        'FECHA_CREACION' => $fecha_creacion,
+                                        'ID_USUARIO' => $id_usuario,
+                                        'OPERADOR_RED' => $operador_red
+                                    );
 
+                                    DB::table($table_catastro)->insert($catastro_values);
                                     $i++;
                                 }
                                 // FIN FOREACH LINE
@@ -857,7 +849,7 @@ class FileController extends Controller
                                 $result->OPERADOR_RED = $operador_red;
                                 $result->RUTA = $filename;
                                 $result->FECHA_CREACION = $fecha_creacion;
-                                $result->ID_USUARIO = 1;
+                                $result->ID_USUARIO = $id_usuario;
                                 $result->save();
 
                                 $query_filename = ArchivosCargadosFacturacion::where('RUTA', '=', $filename)->first();
@@ -871,10 +863,6 @@ class FileController extends Controller
                                 $i = 0;
                                 unset($data[0]);
                                 foreach ($data as $lines) {
-                                    // INSTANCE OF FACTURACION
-                                    $class_facturacion_name = 'Facturacion' . ucfirst($mes_consolidado) . $ano_factura;
-                                    $class_facturacion = 'App\\Models\\' . $class_facturacion_name;
-                                    $facturacion = new $class_facturacion;
 
                                     $row[] = explode("|", $lines);
                                     $nombre_municipio = strtoupper(trim(utf8_encode($row[$i][1])));
@@ -990,34 +978,36 @@ class FileController extends Controller
                                             break;
                                     }
 
-                                    $facturacion->FECHA_PROC_REG = $fecha_proc_reg;
-                                    $facturacion->COD_OPER_CONT = $cod_oper_cont;
-                                    $facturacion->NIC = $nic;
-                                    $facturacion->NIS = $nis;
-                                    $facturacion->SEC_NIS = $sec_nis;
-                                    $facturacion->SEC_REC = $sec_rec;
-                                    $facturacion->FECHA_FACT_LECT = $fecha_fact_lect;
-                                    $facturacion->ID_TIPO_CLIENTE = $id_tipo_cliente;
-                                    $facturacion->ID_TARIFA = $id_tarifa;
-                                    $facturacion->ID_ESTADO_CONTRATO = $id_estado_contrato;
-                                    $facturacion->CONCEPTO = $cod_concepto;
-                                    $facturacion->IMPORTE_TRANS = $importe_trans;
-                                    $facturacion->FECHA_TRANS = $fecha_trans;
-                                    $facturacion->VALOR_RECIBO  = $valor_recibo;
-                                    $facturacion->ID_SECTOR_DPTO = $id_sector_dpto;
-                                    $facturacion->ID_COD_MPIO = $id_cod_mpio;
-                                    $facturacion->ID_COD_CORREG = $id_cod_correg;
-                                    $facturacion->ID_COD_DPTO = $id_cod_depto;
-                                    $facturacion->SIMBOLO_VARIABLE = $simbolo_variable;
-                                    $facturacion->CONSUMO_KWH = $consumo_kwh;
-                                    $facturacion->ID_TIPO_POBLACION = $id_tipo_poblacion;
-                                    $facturacion->ANO_FACTURA = $ano_factura;
-                                    $facturacion->MES_FACTURA = $id_mes;
-                                    $facturacion->ID_TABLA_RUTA = $id_tabla_ruta;
-                                    $facturacion->FECHA_CREACION = $fecha_creacion;
-                                    $facturacion->ID_USUARIO = 1;
-                                    $facturacion->OPERADOR_RED = $operador_red;
-                                    $facturacion->save();
+                                    $facturacion_values = array(
+                                        'FECHA_PROC_REG' => $fecha_proc_reg,
+                                        'COD_OPER_CONT' => $cod_oper_cont,
+                                        'NIC' => $nic,
+                                        'NIS' => $nis,
+                                        'SEC_NIS' => $sec_nis,
+                                        'SEC_REC' => $sec_rec,
+                                        'FECHA_FACT_LECT' => $fecha_fact_lect,
+                                        'ID_TIPO_CLIENTE' => $id_tipo_cliente,
+                                        'ID_TARIFA' => $id_tarifa,
+                                        'ID_ESTADO_CONTRATO' => $id_estado_contrato,
+                                        'CONCEPTO' => $cod_concepto,
+                                        'IMPORTE_TRANS' => $importe_trans,
+                                        'FECHA_TRANS' => $fecha_trans,
+                                        'VALOR_RECIBO'  => $valor_recibo,
+                                        'ID_SECTOR_DPTO' => $id_sector_dpto,
+                                        'ID_COD_MPIO' => $id_cod_mpio,
+                                        'ID_COD_CORREG' => $id_cod_correg,
+                                        'ID_COD_DPTO' => $id_cod_depto,
+                                        'SIMBOLO_VARIABLE' => $simbolo_variable,
+                                        'CONSUMO_KWH' => $consumo_kwh,
+                                        'ID_TIPO_POBLACION' => $id_tipo_poblacion,
+                                        'ANO_FACTURA' => $ano_factura,
+                                        'MES_FACTURA' => $id_mes,
+                                        'ID_TABLA_RUTA' => $id_tabla_ruta,
+                                        'FECHA_CREACION' => $fecha_creacion,
+                                        'ID_USUARIO' => $id_usuario,
+                                        'OPERADOR_RED' => $operador_red
+                                    );
+                                    DB::table($table_facturacion)->insert($facturacion_values);
                                     $i++;
                                 }
                                 // FIN FOREACH LINE
@@ -1089,7 +1079,7 @@ class FileController extends Controller
                                 $result->OPERADOR_RED = $operador_red;
                                 $result->RUTA = $filename;
                                 $result->FECHA_CREACION = $fecha_creacion;
-                                $result->ID_USUARIO = 1;
+                                $result->ID_USUARIO = $id_usuario;
                                 $result->save();
 
                                 $query_filename = ArchivosCargadosRecaudo::where('RUTA', '=', $filename)->first();
@@ -1102,15 +1092,11 @@ class FileController extends Controller
                                 $i = 0;
                                 unset($data[0]);
                                 foreach ($data as $lines) {
-                                    // INSTANCE OF RECAUDO
-                                    $class_recaudo_name = 'Recaudo' . ucfirst($mes_consolidado) . $ano_factura;
-                                    $class_recaudo = 'App\\Models\\' . $class_recaudo_name;
-                                    $recaudo = new $class_recaudo;
 
                                     $row[] = explode("|", $lines);
 
                                     $nombre_municipio =   strtoupper(str_replace("_", " ", trim(utf8_decode($row[$i][1]))));
-                                    $query_municipio = DB::table('municipios_2')->where('NOMBRE', '=', $nombre_municipio)->first();
+                                    $query_municipio = Municipio::where('NOMBRE', '=', $nombre_municipio)->first();
                                     $id_cod_depto = $query_municipio->ID_DEPARTAMENTO;
                                     $id_cod_mpio = $query_municipio->ID_MUNICIPIO;
 
@@ -1215,34 +1201,35 @@ class FileController extends Controller
                                             $simbolo_variable = 0;
                                             break;
                                     }
-
-                                    $recaudo->FECHA_PROC_REG = $fecha_proc_reg;
-                                    $recaudo->COD_OPER_CONT = $cod_oper_cont;
-                                    $recaudo->NIC = $nic;
-                                    $recaudo->NIS = $nis;
-                                    $recaudo->SEC_NIS = $sec_nis;
-                                    $recaudo->SEC_REC = $sec_rec;
-                                    $recaudo->FECHA_FACT_LECT = $fecha_fact_lect;
-                                    $recaudo->ID_TIPO_CLIENTE = $id_tipo_cliente;
-                                    $recaudo->ID_TARIFA = $id_tarifa;
-                                    $recaudo->ID_ESTADO_CONTRATO = $id_estado_contrato;
-                                    $recaudo->CONCEPTO = $cod_concepto;
-                                    $recaudo->IMPORTE_TRANS = $importe_trans;
-                                    $recaudo->FECHA_TRANS = $fecha_trans;
-                                    $recaudo->VALOR_RECIBO = $valor_recibo;
-                                    $recaudo->ID_SECTOR_DPTO = $id_sector_dpto;
-                                    $recaudo->ID_COD_MPIO = $id_cod_mpio;
-                                    $recaudo->ID_COD_CORREG = $id_cod_correg;
-                                    $recaudo->ID_COD_DPTO = $id_cod_depto;
-                                    $recaudo->SIMBOLO_VARIABLE = $simbolo_variable;
-                                    $recaudo->ID_TIPO_POBLACION = $id_tipo_poblacion;
-                                    $recaudo->ANO_FACTURA = $ano_factura;
-                                    $recaudo->MES_FACTURA = $id_mes;
-                                    $recaudo->ID_TABLA_RUTA = $id_tabla_ruta;
-                                    $recaudo->FECHA_CREACION = $fecha_creacion;
-                                    $recaudo->ID_USUARIO = 1;
-                                    $recaudo->OPERADOR_RED = $operador_red;
-                                    $recaudo->save();
+                                    $recaudo_values = array(
+                                        'FECHA_PROC_REG' => $fecha_proc_reg,
+                                        'COD_OPER_CONT' => $cod_oper_cont,
+                                        'NIC' => $nic,
+                                        'NIS' => $nis,
+                                        'SEC_NIS' => $sec_nis,
+                                        'SEC_REC' => $sec_rec,
+                                        'FECHA_FACT_LECT' => $fecha_fact_lect,
+                                        'ID_TIPO_CLIENTE' => $id_tipo_cliente,
+                                        'ID_TARIFA' => $id_tarifa,
+                                        'ID_ESTADO_CONTRATO' => $id_estado_contrato,
+                                        'CONCEPTO' => $cod_concepto,
+                                        'IMPORTE_TRANS' => $importe_trans,
+                                        'FECHA_TRANS' => $fecha_trans,
+                                        'VALOR_RECIBO' => $valor_recibo,
+                                        'ID_SECTOR_DPTO' => $id_sector_dpto,
+                                        'ID_COD_MPIO' => $id_cod_mpio,
+                                        'ID_COD_CORREG' => $id_cod_correg,
+                                        'ID_COD_DPTO' => $id_cod_depto,
+                                        'SIMBOLO_VARIABLE' => $simbolo_variable,
+                                        'ID_TIPO_POBLACION' => $id_tipo_poblacion,
+                                        'ANO_FACTURA' => $ano_factura,
+                                        'MES_FACTURA' => $id_mes,
+                                        'ID_TABLA_RUTA' => $id_tabla_ruta,
+                                        'FECHA_CREACION' => $fecha_creacion,
+                                        'ID_USUARIO' => $id_usuario,
+                                        'OPERADOR_RED' => $operador_red
+                                    );
+                                    DB::table($table_recaudo)->insert($recaudo_values);
                                     $i++;
                                 }
                                 $consultas[] = DB::table($table_recaudo)
@@ -1314,7 +1301,7 @@ class FileController extends Controller
                                 $result->OPERADOR_RED = $operador_red;
                                 $result->RUTA = $filename;
                                 $result->FECHA_CREACION = $fecha_creacion;
-                                $result->ID_USUARIO = 1;
+                                $result->ID_USUARIO = $id_usuario;
                                 $result->save();
 
                                 $query_filename = ArchivosCargadosRefacturacion::where('RUTA', '=', $filename)->first();
@@ -1328,14 +1315,10 @@ class FileController extends Controller
                                 $i = 0;
                                 unset($data[0]);
                                 foreach ($data as $lines) {
-                                    // INSTANCE OF FACTURACION
-                                    $class_refacturacion_name = 'Refacturacion' . ucfirst($mes_consolidado) . $ano_factura;
-                                    $class_facturacion = 'App\\Models\\' . $class_refacturacion_name;
-                                    $refacturacion = new $class_facturacion;
                                     $row[] = explode("|", $lines);
 
                                     $nombre_municipio =   strtoupper(str_replace("_", " ", trim(utf8_decode($row[$i][1]))));
-                                    $query_municipio = DB::table('municipios_2')->where('NOMBRE', '=', $nombre_municipio)->first();
+                                    $query_municipio = Municipio::where('NOMBRE', '=', $nombre_municipio)->first();
                                     $id_cod_depto = $query_municipio->ID_DEPARTAMENTO;
                                     $id_cod_mpio = $query_municipio->ID_MUNICIPIO;
 
@@ -1394,7 +1377,8 @@ class FileController extends Controller
                                     }
 
                                     // SE CONSULTA CORREGIMIENTO POR EL NIC
-                                    $query_corregimiento = CatastroAgosto2022::where('NIC', '=', $nic)->first();
+                                    // $query_corregimiento = CatastroAgosto2022::where('NIC', '=', $nic)->first();
+                                    $query_corregimiento =  DB::table($table_catastro)->where('NIC', '=', $nic)->first();
                                     if ($query_corregimiento) {
                                         $id_cod_correg = $query_corregimiento->ID_COD_CORREG;
                                     } else {
@@ -1440,33 +1424,35 @@ class FileController extends Controller
                                             break;
                                     }
 
-                                    $refacturacion->FECHA_PROC_REG = $fecha_proc_reg;
-                                    $refacturacion->COD_OPER_CONT = $cod_oper_cont;
-                                    $refacturacion->NIC = $nic;
-                                    $refacturacion->NIS = $nis;
-                                    $refacturacion->SEC_NIS = $sec_nis;
-                                    $refacturacion->SEC_REC = $sec_rec;
-                                    $refacturacion->FECHA_FACT_LECT = $fecha_fact_lect;
-                                    $refacturacion->ID_TIPO_CLIENTE = $id_tipo_cliente;
-                                    $refacturacion->ID_TARIFA = $id_tarifa;
-                                    $refacturacion->ID_ESTADO_CONTRATO = $id_estado_contrato;
-                                    $refacturacion->CONCEPTO = $cod_concepto;
-                                    $refacturacion->IMPORTE_TRANS = $importe_trans;
-                                    $refacturacion->FECHA_TRANS = $fecha_trans;
-                                    $refacturacion->VALOR_RECIBO = $valor_recibo;
-                                    $refacturacion->ID_SECTOR_DPTO = $id_sector_dpto;
-                                    $refacturacion->ID_COD_MPIO = $id_cod_mpio;
-                                    $refacturacion->ID_COD_CORREG = $id_cod_correg;
-                                    $refacturacion->ID_COD_DPTO = $id_cod_depto;
-                                    $refacturacion->SIMBOLO_VARIABLE = $simbolo_variable;
-                                    $refacturacion->ID_TIPO_POBLACION = $id_tipo_poblacion;
-                                    $refacturacion->ANO_FACTURA = $ano_factura;
-                                    $refacturacion->MES_FACTURA = $id_mes;
-                                    $refacturacion->ID_TABLA_RUTA = $id_tabla_ruta;
-                                    $refacturacion->FECHA_CREACION = $fecha_creacion;
-                                    $refacturacion->ID_USUARIO = 1;
-                                    $refacturacion->OPERADOR_RED = $operador_red;
-                                    $refacturacion->save();
+                                    $refacturacion_values = array(
+                                        'FECHA_PROC_REG' => $fecha_proc_reg,
+                                        'COD_OPER_CONT' => $cod_oper_cont,
+                                        'NIC' => $nic,
+                                        'NIS' => $nis,
+                                        'SEC_NIS' => $sec_nis,
+                                        'SEC_REC' => $sec_rec,
+                                        'FECHA_FACT_LECT' => $fecha_fact_lect,
+                                        'ID_TIPO_CLIENTE' => $id_tipo_cliente,
+                                        'ID_TARIFA' => $id_tarifa,
+                                        'ID_ESTADO_CONTRATO' => $id_estado_contrato,
+                                        'CONCEPTO' => $cod_concepto,
+                                        'IMPORTE_TRANS' => $importe_trans,
+                                        'FECHA_TRANS' => $fecha_trans,
+                                        'VALOR_RECIBO' => $valor_recibo,
+                                        'ID_SECTOR_DPTO' => $id_sector_dpto,
+                                        'ID_COD_MPIO' => $id_cod_mpio,
+                                        'ID_COD_CORREG' => $id_cod_correg,
+                                        'ID_COD_DPTO' => $id_cod_depto,
+                                        'SIMBOLO_VARIABLE' => $simbolo_variable,
+                                        'ID_TIPO_POBLACION' => $id_tipo_poblacion,
+                                        'ANO_FACTURA' => $ano_factura,
+                                        'MES_FACTURA' => $id_mes,
+                                        'ID_TABLA_RUTA' => $id_tabla_ruta,
+                                        'FECHA_CREACION' => $fecha_creacion,
+                                        'ID_USUARIO' => $id_usuario,
+                                        'OPERADOR_RED' => $operador_red,
+                                    );
+                                    DB::table($table_refacturacion)->insert($refacturacion_values);
                                     $i++;
                                 }
                                 // FIN FOREACH LINE
@@ -1509,7 +1495,7 @@ class FileController extends Controller
 
                         switch ($iniciales_archivo) {
                             case 'CATA':
-                                $query_ruta = DB::table('archivos_cargados_catastro_2')->where('RUTA', '=', $filename)->first();
+                                $query_ruta = ArchivosCargadosCatastro::where('RUTA', '=', $filename)->first();
 
                                 if ($query_ruta) {
                                     $mensajes[] = ["mensaje" => "El archivo ya existe", "file" => $file];
@@ -1569,10 +1555,10 @@ class FileController extends Controller
                                 $result->OPERADOR_RED = $operador_red;
                                 $result->RUTA = $filename;
                                 $result->FECHA_CREACION = $fecha_creacion;
-                                $result->ID_USUARIO = 1;
+                                $result->ID_USUARIO = $id_usuario;
                                 $result->save();
 
-                                $query_filename = DB::table('archivos_cargados_catastro_2')->where('RUTA', '=', $filename)->first();
+                                $query_filename = ArchivosCargadosCatastro::where('RUTA', '=', $filename)->first();
                                 $id_tabla_ruta = $query_filename->ID_TABLA;
                                 $total_deuda_corriente = 0;
                                 $total_deuda_cuota = 0;
@@ -1583,17 +1569,14 @@ class FileController extends Controller
                                 foreach ($data as $lines) {
 
                                     // INSTANCES
-                                    // INSTANCE OF CATASTRO
-                                    $class_catastro_name = 'Catastro' . ucfirst($mes_consolidado) . $ano_factura;
-                                    $class_catastro = 'App\\Models\\' . $class_catastro_name;
-                                    $catastro = new $class_catastro;
+
                                     $corregimiento = new Corregimiento();
                                     $suministro = new EstadoSuministro();
 
                                     $row[] = explode('|', $lines);
 
                                     $nombre_tarifa = strtoupper(str_replace(" ", "_", trim($row[$i][3])));
-                                    $query_tarifa = DB::table('tarifas_2')->where('NOMBRE', '=', $nombre_tarifa)->select('ID_TARIFA')->first();
+                                    $query_tarifa = Tarifa::where('NOMBRE', '=', $nombre_tarifa)->select('ID_TARIFA')->first();
                                     $id_tarifa = $query_tarifa->ID_TARIFA;
                                     $nic = $row[$i][4];
                                     $nis = $row[$i][5];
@@ -1605,7 +1588,7 @@ class FileController extends Controller
                                     $consumo_facturado = trim(str_replace(",", ".", $row[$i][8]));
 
                                     $nombre_municipio =   strtoupper(str_replace("_", " ", trim($row[$i][9])));
-                                    $query_municipio = DB::table('municipios_2')->where('NOMBRE', '=', $nombre_municipio)->first();
+                                    $query_municipio = Municipio::where('NOMBRE', '=', $nombre_municipio)->first();
                                     $id_departamento = $query_municipio->ID_DEPARTAMENTO;
                                     $id_municipio = $query_municipio->ID_MUNICIPIO;
 
@@ -1636,7 +1619,7 @@ class FileController extends Controller
                                     $deuda_cuota = trim(str_replace(",", ".", $row[$i][12]));
 
                                     $estado_suministro = strtoupper(trim($row[$i][13]));
-                                    $query_estado_suministro = DB::table('estados_suministro_2')->where('NOMBRE', '=', $estado_suministro)->first();
+                                    $query_estado_suministro = EstadoSuministro::where('NOMBRE', '=', $estado_suministro)->first();
                                     if ($query_estado_suministro) {
                                         $id_estado_suministro = $query_estado_suministro->ID_ESTADO_SUMINISTRO;
                                     } else {
@@ -1656,29 +1639,31 @@ class FileController extends Controller
                                     $cod_tipo_servicio = trim(str_replace(array("”", "#", ".", "'", ";", "/", "\\", "`", '"'), "", stripAccents($row[$i][0])));
 
                                     //echo ' cod: '  .  $cod_tipo_servicio . ' pos: '. $i . ' direccion_vivienda: '. $direccion_vivienda;
-                                    $query_tipo_servicio = DB::table('tipo_servicios_2')->where('COD_TIPO_SERVICIO', '=', $cod_tipo_servicio)->first();
+                                    $query_tipo_servicio = TipoServicio::where('COD_TIPO_SERVICIO', '=', $cod_tipo_servicio)->first();
                                     $id_tipo_servicio = $query_tipo_servicio->ID_TIPO_SERVICIO;
-                                    $catastro->ID_TIPO_SERVICIO = $id_tipo_servicio;
-                                    $catastro->ID_TARIFA = $id_tarifa;
-                                    $catastro->NIC = $nic;
-                                    $catastro->NIS = $nis;
-                                    $catastro->NOMBRE_PROPIETARIO = $nombre_propietario;
-                                    $catastro->DIRECCION_VIVIENDA = $direccion_vivienda;
-                                    $catastro->CONSUMO_FACTURADO = $consumo_facturado;
-                                    $catastro->ID_COD_DPTO = $id_departamento;
-                                    $catastro->ID_COD_MPIO = $id_municipio;
-                                    $catastro->ID_COD_CORREG = $id_corregimiento;
-                                    $catastro->DEUDA_CORRIENTE = $deuda_corriente;
-                                    $catastro->DEUDA_CUOTA = $deuda_cuota;
-                                    $catastro->ID_ESTADO_SUMINISTRO = $id_estado_suministro;
-                                    $catastro->ANO_CATASTRO = $ano_factura;
-                                    $catastro->MES_CATASTRO = $id_mes;
-                                    $catastro->ID_TABLA_RUTA = $id_tabla_ruta;
-                                    $catastro->FECHA_CREACION = $fecha_creacion;
-                                    $catastro->ID_USUARIO = 1;
-                                    $catastro->OPERADOR_RED = $operador_red;
-                                    $catastro->save();
+                                    $catastro_values = array(
+                                        'ID_TIPO_SERVICIO' => $id_tipo_servicio,
+                                        'ID_TARIFA' => $id_tarifa,
+                                        'NIC' => $nic,
+                                        'NIS' => $nis,
+                                        'NOMBRE_PROPIETARIO' => $nombre_propietario,
+                                        'DIRECCION_VIVIENDA' => $direccion_vivienda,
+                                        'CONSUMO_FACTURADO' => $consumo_facturado,
+                                        'ID_COD_DPTO' => $id_departamento,
+                                        'ID_COD_MPIO' => $id_municipio,
+                                        'ID_COD_CORREG' => $id_corregimiento,
+                                        'DEUDA_CORRIENTE' => $deuda_corriente,
+                                        'DEUDA_CUOTA' => $deuda_cuota,
+                                        'ID_ESTADO_SUMINISTRO' => $id_estado_suministro,
+                                        'ANO_CATASTRO' => $ano_factura,
+                                        'MES_CATASTRO' => $id_mes,
+                                        'ID_TABLA_RUTA' => $id_tabla_ruta,
+                                        'FECHA_CREACION' => $fecha_creacion,
+                                        'ID_USUARIO' => $id_usuario,
+                                        'OPERADOR_RED' => $operador_red,
+                                    );
 
+                                    DB::table($table_catastro)->insert($catastro_values);
                                     $i++;
                                 }
                                 // FIN FOREACH LINE
@@ -1754,7 +1739,7 @@ class FileController extends Controller
                                 $result->OPERADOR_RED = $operador_red;
                                 $result->RUTA = $filename;
                                 $result->FECHA_CREACION = $fecha_creacion;
-                                $result->ID_USUARIO = 1;
+                                $result->ID_USUARIO = $id_usuario;
                                 $result->save();
 
                                 $query_filename = ArchivosCargadosFacturacion::where('RUTA', '=', $filename)->first();
@@ -1768,10 +1753,6 @@ class FileController extends Controller
                                 $i = 0;
 
                                 foreach ($data as $lines) {
-                                    // INSTANCE OF FACTURACION
-                                    $class_facturacion_name = 'Facturacion' . ucfirst($mes_consolidado) . $ano_factura;
-                                    $class_facturacion = 'App\\Models\\' . $class_facturacion_name;
-                                    $facturacion = new $class_facturacion;
 
                                     $row[] = explode("\t", $lines);
                                     $fecha_proc_reg = trim(substr($row[$i][0], 0, 4) . "-" . substr($row[$i][0], 4, 2) . "-" . substr($row[$i][0], 6, 2));
@@ -1844,36 +1825,36 @@ class FileController extends Controller
                                             $consumo_kwh = 0;
                                             break;
                                     }
-
-                                    $facturacion->FECHA_PROC_REG = $fecha_proc_reg;
-                                    $facturacion->COD_OPER_CONT = $cod_oper_cont;
-                                    $facturacion->NIC = $nic;
-                                    $facturacion->NIS = $nis;
-                                    $facturacion->SEC_NIS = $sec_nis;
-                                    $facturacion->SEC_REC = $sec_rec;
-                                    $facturacion->FECHA_FACT_LECT = $fecha_fact_lect;
-                                    $facturacion->ID_TIPO_CLIENTE = $id_tipo_cliente;
-                                    $facturacion->ID_TARIFA = $id_tarifa;
-                                    $facturacion->ID_ESTADO_CONTRATO = $id_estado_contrato;
-                                    $facturacion->CONCEPTO = $concepto;
-                                    $facturacion->IMPORTE_TRANS = $importe_trans;
-                                    $facturacion->FECHA_TRANS = $fecha_trans;
-                                    $facturacion->VALOR_RECIBO  = $valor_recibo;
-                                    $facturacion->ID_SECTOR_DPTO = $id_sector_dpto;
-                                    $facturacion->ID_COD_MPIO = $id_cod_mpio;
-                                    $facturacion->ID_COD_CORREG = $id_cod_correg;
-                                    $facturacion->ID_COD_DPTO = $id_cod_depto;
-                                    $facturacion->SIMBOLO_VARIABLE = $simbolo_variable;
-                                    $facturacion->CONSUMO_KWH = $consumo_kwh;
-                                    $facturacion->ID_TIPO_POBLACION = $id_tipo_poblacion;
-                                    $facturacion->ANO_FACTURA = $ano_factura;
-                                    $facturacion->MES_FACTURA = $id_mes;
-                                    $facturacion->ID_TABLA_RUTA = $id_tabla_ruta;
-                                    $facturacion->FECHA_CREACION = $fecha_creacion;
-                                    $facturacion->ID_USUARIO = 1;
-                                    $facturacion->OPERADOR_RED = $operador_red;
-                                    $facturacion->save();
-
+                                    $facturacion_values = array(
+                                        'FECHA_PROC_REG' => $fecha_proc_reg,
+                                        'COD_OPER_CONT' => $cod_oper_cont,
+                                        'NIC' => $nic,
+                                        'NIS' => $nis,
+                                        'SEC_NIS' => $sec_nis,
+                                        'SEC_REC' => $sec_rec,
+                                        'FECHA_FACT_LECT' => $fecha_fact_lect,
+                                        'ID_TIPO_CLIENTE' => $id_tipo_cliente,
+                                        'ID_TARIFA' => $id_tarifa,
+                                        'ID_ESTADO_CONTRATO' => $id_estado_contrato,
+                                        'CONCEPTO' => $concepto,
+                                        'IMPORTE_TRANS' => $importe_trans,
+                                        'FECHA_TRANS' => $fecha_trans,
+                                        'VALOR_RECIBO'  => $valor_recibo,
+                                        'ID_SECTOR_DPTO' => $id_sector_dpto,
+                                        'ID_COD_MPIO' => $id_cod_mpio,
+                                        'ID_COD_CORREG' => $id_cod_correg,
+                                        'ID_COD_DPTO' => $id_cod_depto,
+                                        'SIMBOLO_VARIABLE' => $simbolo_variable,
+                                        'CONSUMO_KWH' => $consumo_kwh,
+                                        'ID_TIPO_POBLACION' => $id_tipo_poblacion,
+                                        'ANO_FACTURA' => $ano_factura,
+                                        'MES_FACTURA' => $id_mes,
+                                        'ID_TABLA_RUTA' => $id_tabla_ruta,
+                                        'FECHA_CREACION' => $fecha_creacion,
+                                        'ID_USUARIO' => $id_usuario,
+                                        'OPERADOR_RED' => $operador_red
+                                    );
+                                    DB::table($table_facturacion)->insert($facturacion_values);
                                     $i++;
                                 }
                                 // FIN FOREACH LINE
@@ -1949,7 +1930,7 @@ class FileController extends Controller
                                 $result->OPERADOR_RED = $operador_red;
                                 $result->RUTA = $filename;
                                 $result->FECHA_CREACION = $fecha_creacion;
-                                $result->ID_USUARIO = 1;
+                                $result->ID_USUARIO = $id_usuario;
                                 $result->save();
 
                                 $query_filename = ArchivosCargadosRecaudo::where('RUTA', '=', $filename)->first();
@@ -1964,10 +1945,7 @@ class FileController extends Controller
                                 $i = 0;
 
                                 foreach ($data as $lines) {
-                                    // INSTANCE OF RECAUDO
-                                    $class_recaudo_name = 'Recaudo' . ucfirst($mes_consolidado) . $ano_factura;
-                                    $class_recaudo = 'App\\Models\\' . $class_recaudo_name;
-                                    $recaudo = new $class_recaudo;
+
 
                                     $row[] = explode("\t", $lines);
                                     $fecha_proc_reg = trim(substr($row[$i][0], 0, 4) . "-" . substr($row[$i][0], 4, 2) . "-" . substr($row[$i][0], 6, 2));
@@ -2041,33 +2019,36 @@ class FileController extends Controller
                                     }
 
                                     // SAVE INFORMATION
-                                    $recaudo->FECHA_PROC_REG = $fecha_proc_reg;
-                                    $recaudo->COD_OPER_CONT = $cod_oper_cont;
-                                    $recaudo->NIC = $nic;
-                                    $recaudo->NIS = $nis;
-                                    $recaudo->SEC_NIS = $sec_nis;
-                                    $recaudo->SEC_REC = $sec_rec;
-                                    $recaudo->FECHA_FACT_LECT = $fecha_fact_lect;
-                                    $recaudo->ID_TIPO_CLIENTE = $id_tipo_cliente;
-                                    $recaudo->ID_TARIFA = $id_tarifa;
-                                    $recaudo->ID_ESTADO_CONTRATO = $id_estado_contrato;
-                                    $recaudo->CONCEPTO = $concepto;
-                                    $recaudo->IMPORTE_TRANS = $importe_trans;
-                                    $recaudo->FECHA_TRANS = $fecha_trans;
-                                    $recaudo->VALOR_RECIBO = $valor_recibo;
-                                    $recaudo->ID_SECTOR_DPTO = $id_sector_dpto;
-                                    $recaudo->ID_COD_MPIO = $id_cod_mpio;
-                                    $recaudo->ID_COD_CORREG = $id_cod_correg;
-                                    $recaudo->ID_COD_DPTO = $id_cod_depto;
-                                    $recaudo->SIMBOLO_VARIABLE = $simbolo_variable;
-                                    $recaudo->ID_TIPO_POBLACION = $id_tipo_poblacion;
-                                    $recaudo->ANO_FACTURA = $ano_factura;
-                                    $recaudo->MES_FACTURA = $id_mes;
-                                    $recaudo->ID_TABLA_RUTA = $id_tabla_ruta;
-                                    $recaudo->FECHA_CREACION = $fecha_creacion;
-                                    $recaudo->ID_USUARIO = 1;
-                                    $recaudo->OPERADOR_RED = $operador_red;
-                                    $recaudo->save();
+                                    $recaudo_values = array(
+
+                                        'FECHA_PROC_REG' => $fecha_proc_reg,
+                                        'COD_OPER_CONT' => $cod_oper_cont,
+                                        'NIC' => $nic,
+                                        'NIS' => $nis,
+                                        'SEC_NIS' => $sec_nis,
+                                        'SEC_REC' => $sec_rec,
+                                        'FECHA_FACT_LECT' => $fecha_fact_lect,
+                                        'ID_TIPO_CLIENTE' => $id_tipo_cliente,
+                                        'ID_TARIFA' => $id_tarifa,
+                                        'ID_ESTADO_CONTRATO' => $id_estado_contrato,
+                                        'CONCEPTO' => $concepto,
+                                        'IMPORTE_TRANS' => $importe_trans,
+                                        'FECHA_TRANS' => $fecha_trans,
+                                        'VALOR_RECIBO' => $valor_recibo,
+                                        'ID_SECTOR_DPTO' => $id_sector_dpto,
+                                        'ID_COD_MPIO' => $id_cod_mpio,
+                                        'ID_COD_CORREG' => $id_cod_correg,
+                                        'ID_COD_DPTO' => $id_cod_depto,
+                                        'SIMBOLO_VARIABLE' => $simbolo_variable,
+                                        'ID_TIPO_POBLACION' => $id_tipo_poblacion,
+                                        'ANO_FACTURA' => $ano_factura,
+                                        'MES_FACTURA' => $id_mes,
+                                        'ID_TABLA_RUTA' => $id_tabla_ruta,
+                                        'FECHA_CREACION' => $fecha_creacion,
+                                        'ID_USUARIO' => $id_usuario,
+                                        'OPERADOR_RED' => $operador_red,
+                                    );
+                                    DB::table($table_recaudo)->insert($recaudo_values);
                                     $i++;
                                 }
                                 // FIN FOREACH LINE
@@ -2140,7 +2121,7 @@ class FileController extends Controller
                                 $result->OPERADOR_RED = $operador_red;
                                 $result->RUTA = $filename;
                                 $result->FECHA_CREACION = $fecha_creacion;
-                                $result->ID_USUARIO = 1;
+                                $result->ID_USUARIO = $id_usuario;
                                 $result->save();
 
                                 $query_filename = ArchivosCargadosRefacturacion::where('RUTA', '=', $filename)->first();
@@ -2154,10 +2135,6 @@ class FileController extends Controller
                                 $i = 0;
 
                                 foreach ($data as $lines) {
-                                    // INSTANCE OF FACTURACION
-                                    $class_refacturacion_name = 'Refacturacion' . ucfirst($mes_consolidado) . $ano_factura;
-                                    $class_facturacion = 'App\\Models\\' . $class_refacturacion_name;
-                                    $refacturacion = new $class_facturacion;
 
                                     $row[] = explode("\t", $lines);
                                     $fecha_proc_reg = trim(substr($row[$i][0], 0, 4) . "-" . substr($row[$i][0], 4, 2) . "-" . substr($row[$i][0], 6, 2));
@@ -2232,33 +2209,35 @@ class FileController extends Controller
 
 
                                     // SAVING INFORMATION
-                                    $refacturacion->FECHA_PROC_REG = $fecha_proc_reg;
-                                    $refacturacion->COD_OPER_CONT = $cod_oper_cont;
-                                    $refacturacion->NIC = $nic;
-                                    $refacturacion->NIS = $nis;
-                                    $refacturacion->SEC_NIS = $sec_nis;
-                                    $refacturacion->SEC_REC = $sec_rec;
-                                    $refacturacion->FECHA_FACT_LECT = $fecha_fact_lect;
-                                    $refacturacion->ID_TIPO_CLIENTE = $id_tipo_cliente;
-                                    $refacturacion->ID_TARIFA = $id_tarifa;
-                                    $refacturacion->ID_ESTADO_CONTRATO = $id_estado_contrato;
-                                    $refacturacion->CONCEPTO = $concepto;
-                                    $refacturacion->IMPORTE_TRANS = $importe_trans;
-                                    $refacturacion->FECHA_TRANS = $fecha_trans;
-                                    $refacturacion->VALOR_RECIBO = $valor_recibo;
-                                    $refacturacion->ID_SECTOR_DPTO = $id_sector_dpto;
-                                    $refacturacion->ID_COD_MPIO = $id_cod_mpio;
-                                    $refacturacion->ID_COD_CORREG = $id_cod_correg;
-                                    $refacturacion->ID_COD_DPTO = $id_cod_depto;
-                                    $refacturacion->SIMBOLO_VARIABLE = $simbolo_variable;
-                                    $refacturacion->ID_TIPO_POBLACION = $id_tipo_poblacion;
-                                    $refacturacion->ANO_FACTURA = $ano_factura;
-                                    $refacturacion->MES_FACTURA = $id_mes;
-                                    $refacturacion->ID_TABLA_RUTA = $id_tabla_ruta;
-                                    $refacturacion->FECHA_CREACION = $fecha_creacion;
-                                    $refacturacion->ID_USUARIO = 1;
-                                    $refacturacion->OPERADOR_RED = $operador_red;
-                                    $refacturacion->save();
+                                    $refacturacion_values = array(
+                                        'FECHA_PROC_REG' => $fecha_proc_reg,
+                                        'COD_OPER_CONT' => $cod_oper_cont,
+                                        'NIC' => $nic,
+                                        'NIS' => $nis,
+                                        'SEC_NIS' => $sec_nis,
+                                        'SEC_REC' => $sec_rec,
+                                        'FECHA_FACT_LECT' => $fecha_fact_lect,
+                                        'ID_TIPO_CLIENTE' => $id_tipo_cliente,
+                                        'ID_TARIFA' => $id_tarifa,
+                                        'ID_ESTADO_CONTRATO' => $id_estado_contrato,
+                                        'CONCEPTO' => $concepto,
+                                        'IMPORTE_TRANS' => $importe_trans,
+                                        'FECHA_TRANS' => $fecha_trans,
+                                        'VALOR_RECIBO' => $valor_recibo,
+                                        'ID_SECTOR_DPTO' => $id_sector_dpto,
+                                        'ID_COD_MPIO' => $id_cod_mpio,
+                                        'ID_COD_CORREG' => $id_cod_correg,
+                                        'ID_COD_DPTO' => $id_cod_depto,
+                                        'SIMBOLO_VARIABLE' => $simbolo_variable,
+                                        'ID_TIPO_POBLACION' => $id_tipo_poblacion,
+                                        'ANO_FACTURA' => $ano_factura,
+                                        'MES_FACTURA' => $id_mes,
+                                        'ID_TABLA_RUTA' => $id_tabla_ruta,
+                                        'FECHA_CREACION' => $fecha_creacion,
+                                        'ID_USUARIO' => $id_usuario,
+                                        'OPERADOR_RED' => $operador_red
+                                    );
+                                    DB::table($table_refacturacion)->insert($refacturacion_values);
                                     $i++;
                                 }
                                 // FIN FOREACH LINE

@@ -23,6 +23,8 @@ use Inertia\Inertia;
 Route::get('file-upload', [FileController::class, 'index'])->name('file.upload');
 // Route::post('file-upload', [FileController::class, 'store'])->name('file.upload.store');
 Route::post('/file-upload', [FileController::class, 'fileRegister'])->name('file.register');
+Route::get('file-progress-bar', [FileController::class, 'fileProgressBar'])->name('file.progress.bar');
+Route::post('file-progress-bar', [FileController::class, 'fileUploadProgressBar'])->name('file.progress.bar.upload');
 
 Route::get('/', function () {
     return Inertia::render('Welcome', [
