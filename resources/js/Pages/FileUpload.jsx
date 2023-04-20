@@ -1,6 +1,7 @@
 import React from 'react';
 import Authenticated from '@/Layouts/AuthenticatedLayout';
-import { Head, useForm, usePage, Link } from '@inertiajs/inertia-react';
+// import { Head, useForm, usePage } from '@inertiajs/inertia-react';
+import { Head, useForm, usePage } from '@inertiajs/react';
 
 export default function Dashboard(props) {
     const { files } = usePage().props
@@ -94,8 +95,8 @@ export default function Dashboard(props) {
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    {files.map(({ id, title, name }) => (
-                                        <tr>
+                                    {files.map(({ id, title, name }, key) => (
+                                        <tr key={key}>
                                             <td className="border px-4 py-2">{ id }</td>
                                             <td className="border px-4 py-2">{ title }</td>
                                             <td className="border px-4 py-2">
