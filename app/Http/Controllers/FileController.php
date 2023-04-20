@@ -7,6 +7,7 @@ use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Illuminate\Support\Facades\Validator;
 use App\Models\File;
+use App\Models\UploadFile ;
 use App\Models\ArchivosCargadosCatastro;
 use App\Models\ArchivosCargadosFacturacion;
 use App\Models\ArchivosCargadosRecaudo;
@@ -42,16 +43,76 @@ class FileController extends Controller
         $files = File::latest()->get();
         return Inertia::render('FileUpload', compact('files'));
     }
-    public function fileProgressBar(){
-        return Inertia::render('FileProgressBar');
+    public function fileProgressBar()
+    {
+        return Inertia::render('ProgressBarExample1');
     }
-    public function fileUploadProgressBar(Request $request){
-        $file = $request->file('file');
 
-        // Do something with the uploaded file...
+    /**
+     ** UPLOAD FILE AND THE READ IT
+     *
+     */
+
+    public function upload(Request $request)
+    {
+        if ($request->hasFile('file')) {
+            $file = $request->file('file');
+            $filename = $file->getClientOriginalName();
+            $path = $file->storeAs('uploads', $filename);
+
+            $uploadedFile = new UploadFile();
+            $uploadedFile->name = $filename;
+            $uploadedFile->path = $path;
+            $uploadedFile->status = 'uploaded';
+            $uploadedFile->save();
+
+            return response()->json(['success' => true, 'file' => $uploadedFile]);
+        } else {
+            return response()->json(['success' => false, 'message' => 'No file uploaded']);
+        }
+    }
+
+
+
+    public function processFile(Request $request)
+    {
+        $fileId = $request->input('fileId');
+
+        $file = UploadFile::find($fileId);
+
+        // Open the file and iterate over each row...
+        $handle = fopen($file->path(), 'r');
+        while (($data = fgetcsv($handle)) !== false) {
+            echo $data[0] . "\n";
+            echo $data[1] . "\n";
+            // Do something with the row data, such as saving it to a database...
+            // $row = new Row();
+            // $row->column1 = $data[0];
+            // $row->column2 = $data[1];
+            // // ...
+            // $row->save();
+        }
+        fclose($handle);
+
+        // Update the file status to indicate that it has been processed...
+        $file->status = 'processed';
+        $file->save();
 
         return response()->json(['success' => true]);
+    }
 
+
+
+
+
+
+
+
+    public function fileUploadProgressBar(Request $request)
+    {
+        // Do something with the uploaded file...
+        sleep(20);
+        return $request;
     }
 
     /**
@@ -2273,7 +2334,7 @@ class FileController extends Controller
             'file' => ['required'],
         ])->validate();
 
-        $fileName = time().'.'.$request->file->extension();
+        $fileName = time() . '.' . $request->file->extension();
         $request->file->move(public_path('uploads'), $fileName);
 
         File::create([

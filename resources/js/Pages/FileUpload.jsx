@@ -2,7 +2,8 @@ import React from 'react';
 import Authenticated from '@/Layouts/AuthenticatedLayout';
 // import { Head, useForm, usePage } from '@inertiajs/inertia-react';
 import { Head, useForm, usePage } from '@inertiajs/react';
-
+  //base end point url
+const FILE_UPLOAD_BASE_ENDPOINT = "http://localhost:8000";
 export default function Dashboard(props) {
     const { files } = usePage().props
 
@@ -11,13 +12,54 @@ export default function Dashboard(props) {
         file: null,
     });
 
-    function handleSubmit(e) {
-        e.preventDefault();
-        post(route("file.upload.store"));
-
-        setData("title", "")
-        setData("file", null)
+    const uploadFileHandler = (event) => {
+        //setFiles(event.target.files);
+        setData("file", event.target.files)
     }
+
+    const fileSubmitHandler = (event) => {
+        event.preventDefault();
+
+        const formData = new FormData();
+        for (let i = 0; i < files.length; i++) {
+            formData.append(files[i].name, files[i])
+        }
+
+        const requestOptions = {
+            method: 'POST',
+            body: formData
+        };
+        fetch(FILE_UPLOAD_BASE_ENDPOINT + '/file-upload', requestOptions)
+            .then(async response => {
+                // const isJson = response.headers.get('content-type')?.includes('application/json');
+                const data = await response.json();
+                console.log(response.ok);
+                // check for error response
+                if (response.ok && data) {
+
+                    alert('archivo cargado con exito')
+                }
+                if (!response.ok) {
+                    // get error message
+                    const error = (data && data.message) || response.status;
+                    return Promise.reject(error);
+
+                }
+            })
+            .catch(error => {
+                console.error('Error while uploading file!', error);
+            })
+
+    }
+
+
+    // function handleSubmit(e) {
+    //     e.preventDefault();
+    //     post(route("file.upload.store"));
+
+    //     setData("title", "")
+    //     setData("file", null)
+    // }
 
     return (
         <Authenticated
@@ -32,7 +74,7 @@ export default function Dashboard(props) {
                     <div className="bg-white overflow-hidden shadow-sm sm:rounded-lg">
                         <div className="p-6 bg-white border-b border-gray-200">
 
-                            <form name="createForm" onSubmit={handleSubmit}>
+                            <form name="createForm" onSubmit={fileSubmitHandler}>
                                 <div className="flex flex-col">
                                     <div className="mb-4">
                                         <label className="">Title</label>
@@ -42,9 +84,7 @@ export default function Dashboard(props) {
                                             label="Title"
                                             name="title"
                                             value={data.title}
-                                            onChange={(e) =>
-                                                setData("title", e.target.value)
-                                            }
+                                            onChange={uploadFileHandler}
                                         />
                                         <span className="text-red-600">
                                             {errors.title}
@@ -57,9 +97,7 @@ export default function Dashboard(props) {
                                             className="w-full px-4 py-2"
                                             label="File"
                                             name="file"
-                                            onChange={(e) =>
-                                                setData("file", e.target.files[0])
-                                            }
+                                            onChange={uploadFileHandler}
                                         />
                                         <span className="text-red-600">
                                             {errors.file}
