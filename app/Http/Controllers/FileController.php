@@ -4,10 +4,11 @@ namespace App\Http\Controllers;
 
 use Illuminate\Support\Facades\DB;
 use Illuminate\Http\Request;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 use Inertia\Inertia;
 use Illuminate\Support\Facades\Validator;
 use App\Models\File;
-use App\Models\UploadFile ;
+use App\Models\UploadFile;
 use App\Models\ArchivosCargadosCatastro;
 use App\Models\ArchivosCargadosFacturacion;
 use App\Models\ArchivosCargadosRecaudo;
@@ -56,49 +57,102 @@ class FileController extends Controller
     public function upload(Request $request)
     {
         if ($request->hasFile('file')) {
-            $file = $request->file('file');
-            $filename = $file->getClientOriginalName();
-            $path = $file->storeAs('uploads', $filename);
-
+            $files = $request->file('file');
+            $filename = $files->getClientOriginalName();
+            $filepath = public_path('uploads/');
+            $file = $filepath . $filename;
+            move_uploaded_file($files, $file);
             $uploadedFile = new UploadFile();
             $uploadedFile->name = $filename;
-            $uploadedFile->path = $path;
+            $uploadedFile->path = $file;
             $uploadedFile->status = 'uploaded';
             $uploadedFile->save();
 
-            return response()->json(['success' => true, 'file' => $uploadedFile]);
+            $filesize = $files->getSize();
+            $session = $request->session();
+            $session->put('file', $file);
+            $session->put('filesize', $filesize);
+
+            return response()->json(['message' => 'File uploaded successfully']);
         } else {
             return response()->json(['success' => false, 'message' => 'No file uploaded']);
         }
+    }
+
+    public function processFileUploaded(Request $request)
+    {
+        $session = $request->session();
+        $file = $session->get('file');
+        $filesize = $session->get('filesize');
+        $uploadedBytes = 0;
+
+        $data = file($file);
+        $row = array();
+        $i = 0;
+        $response = new StreamedResponse();
+        foreach ($data as $lines) {
+            $row[] = explode(';', $lines);
+            echo $row[$i][0] . "\n";
+            echo $row[$i][1] . "\n";
+
+
+            // Update progress percentage and send SSE update to client
+            $uploadedBytes += strlen($lines);
+            $progress = round(($uploadedBytes / $filesize) * 100);
+            $sseData = ['progress' => $progress];
+            $sseDataStr = json_encode($sseData);
+            echo "data: {$sseDataStr}\n\n";
+            ob_flush();
+            flush();
+
+            $response->headers->set('Content-Type', 'text/event-stream');
+            $response->headers->set('Cache-Control', 'no-cache');
+            $response->headers->set('X-Accel-Buffering', 'no');
+
+
+            $i++;
+        }
+
+        // $session->forget('filename');
+        // $session->forget('filesize');
     }
 
 
 
     public function processFile(Request $request)
     {
-        $fileId = $request->input('fileId');
+        $filepath = $request->input('filepath');
 
-        $file = UploadFile::find($fileId);
-
-        // Open the file and iterate over each row...
-        $handle = fopen($file->path(), 'r');
-        while (($data = fgetcsv($handle)) !== false) {
-            echo $data[0] . "\n";
-            echo $data[1] . "\n";
-            // Do something with the row data, such as saving it to a database...
-            // $row = new Row();
-            // $row->column1 = $data[0];
-            // $row->column2 = $data[1];
-            // // ...
-            // $row->save();
+        $file = file($filepath);
+        $row = array();
+        $i = 0;
+        foreach ($file as $lines) {
+            $row[] = explode(';', $lines);
+            echo $row[$i][0] . "\n";
+            echo $row[$i][1] . "\n";
+            sleep(5);
+            $i++;
         }
-        fclose($handle);
 
-        // Update the file status to indicate that it has been processed...
-        $file->status = 'processed';
-        $file->save();
+        // // Open the file and iterate over each row...
+        // $handle = fopen($file->path(), 'r');
+        // while (($data = fgetcsv($handle)) !== false) {
+        //     echo $data[0] . "\n";
+        //     echo $data[1] . "\n";
+        //     // Do something with the row data, such as saving it to a database...
+        //     // $row = new Row();
+        //     // $row->column1 = $data[0];
+        //     // $row->column2 = $data[1];
+        //     // // ...
+        //     // $row->save();
+        // }
+        // fclose($handle);
 
-        return response()->json(['success' => true]);
+        // // Update the file status to indicate that it has been processed...
+        // $file->status = 'processed';
+        // $file->save();
+
+        return $file;
     }
 
 
