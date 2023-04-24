@@ -10,20 +10,37 @@ export default function ProgressBarExample1() {
     const [progress, setProgress] = useState(0);
 
     useEffect(() => {
-        const source = new EventSource(URL_PROCESS);
+        var evtSource = new EventSource(URL_PROCESS);
 
-        source.addEventListener('message', (event) => {
-            const data = JSON.parse(event.data);
-            setProgress(data.progress);
-        });
+        evtSource.addEventListener("message", function (e) {
 
-        source.addEventListener('error', (event) => {
+            var obj = JSON.parse(e.data);
+            console.log(obj.progress);
+            setProgress(obj.progress);
+            // newElement.innerHTML = "ping at " + obj.time;
+            // eventList.appendChild(newElement);
+        }, false);
+
+
+
+        // let source = new EventSource(URL_PROCESS);
+        // console.log('source: 1', source)
+        // source.onmessage = function(event){
+        //     console.log('event.data: ', event.data)
+        // }
+        // source.addEventListener('message', (event) => {
+        //     const data = JSON.parse(event.data);
+        //     console.log('data complete: ' , data)
+        //     setProgress(data.progress);
+        // });
+
+        evtSource.addEventListener('error', (event) => {
             console.log(event);
-            source.close();
+            evtSource.close();
         });
 
         return () => {
-            source.close();
+            evtSource.close();
         };
     }, []);
 
@@ -45,7 +62,7 @@ export default function ProgressBarExample1() {
             console.log(error);
         }
 
-        
+
     };
 
     return (

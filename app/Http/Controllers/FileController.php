@@ -81,38 +81,74 @@ class FileController extends Controller
 
     public function processFileUploaded(Request $request)
     {
+        //date_default_timezone_set("America/New_York");
+        header("Content-Type: text/event-stream\n\n");
+
+        // $counter = rand(1, 10);
+        // while (1) {
+        //     // Every second, sent a "ping" event.
+
+        //     echo "event: ping\n";
+        //     $curDate = date(DATE_ISO8601);
+        //     echo 'data: {"time": "' . $curDate . '"}';
+        //     echo "\n\n";
+
+        //     // Send a simple message at random intervals.
+
+        //     $counter--;
+
+        //     if (!$counter) {
+        //         echo 'data: This is a message at time ' . $curDate . "\n\n";
+        //         $counter = rand(1, 10);
+        //     }
+
+        //     ob_flush();
+        //     flush();
+        //     sleep(1);
+        // }
+
         $session = $request->session();
         $file = $session->get('file');
         $filesize = $session->get('filesize');
+        $filesize = 2214653;
         $uploadedBytes = 0;
-
+        $file = 'C:\xampp\htdocs\projects\upload-files\public\uploads/PRUEBA_INFORME_PITALITO.xlsx';
         $data = file($file);
         $row = array();
         $i = 0;
         $response = new StreamedResponse();
         foreach ($data as $lines) {
             $row[] = explode(';', $lines);
-            echo $row[$i][0] . "\n";
-            echo $row[$i][1] . "\n";
+            // echo $row[$i][0] . "\n";
+            // echo $row[$i][1] . "\n";
 
 
             // Update progress percentage and send SSE update to client
             $uploadedBytes += strlen($lines);
+            // echo  'bytes: '. $uploadedBytes . "\n" ;
             $progress = round(($uploadedBytes / $filesize) * 100);
+            // echo 'progress: '. $progress . "\n";
+            echo "event: message\n";
             $sseData = ['progress' => $progress];
             $sseDataStr = json_encode($sseData);
-            echo "data: {$sseDataStr}\n\n";
+            echo 'data: {"progress": "' . $progress . '"}';
+            echo "\n\n";
+            // echo "data: {$sseDataStr}\n\n";
             ob_flush();
             flush();
 
-            $response->headers->set('Content-Type', 'text/event-stream');
-            $response->headers->set('Cache-Control', 'no-cache');
-            $response->headers->set('X-Accel-Buffering', 'no');
 
+            sleep(0.2);
 
-            $i++;
+            // $i++;
         }
-
+        return response()->json(['message' => 'File uploaded successfully']);
+        // $response->headers->set('Content-Type', 'text/event-stream');
+        // $response->headers->set('Cache-Control', 'no-cache');
+        // $response->headers->set('X-Accel-Buffering', 'no');
+        // header('Content-Type', 'text/event-stream');
+        // header('Cache-Control', 'no-cache');
+        // header('X-Accel-Buffering', 'no');
         // $session->forget('filename');
         // $session->forget('filesize');
     }
