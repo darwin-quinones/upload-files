@@ -25,7 +25,7 @@ Route::post('file-upload', [FileController::class, 'store'])->name('file.upload.
 // Route::post('/file-upload', [FileController::class, 'fileRegister'])->name('file.register');
 Route::get('file-progress-bar', [FileController::class, 'fileProgressBar'])->name('file.progress.bar');
 Route::post('file-progress-bar', [FileController::class, 'fileUploadProgressBar'])->name('file.progress.bar.upload');
-Route::post('/upload', [FileController::class, 'upload'])->name('file.upload2');
+Route::post('/upload-files', [FileController::class, 'uploadFiles'])->name('file.upload2');
 Route::get('/process-file-uploaded', [FileController::class, 'processFileUploaded'])->name('file.upload.get');
 Route::post('/process-file', [FileController::class, 'processFile'])->name('file.upload.process');
 

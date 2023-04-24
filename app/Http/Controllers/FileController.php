@@ -8,6 +8,7 @@ use Symfony\Component\HttpFoundation\StreamedResponse;
 use Inertia\Inertia;
 use Illuminate\Support\Facades\Validator;
 use App\Models\File;
+use App\Models\SubirArchivosTemporales;
 use App\Models\UploadFile;
 use App\Models\ArchivosCargadosCatastro;
 use App\Models\ArchivosCargadosFacturacion;
@@ -54,26 +55,28 @@ class FileController extends Controller
      *
      */
 
-    public function upload(Request $request)
+    public function uploadFiles(Request $request)
     {
-        if ($request->hasFile('file')) {
-            $files = $request->file('file');
-            $filename = $files->getClientOriginalName();
-            $filepath = public_path('uploads/');
-            $file = $filepath . $filename;
-            move_uploaded_file($files, $file);
-            $uploadedFile = new UploadFile();
-            $uploadedFile->name = $filename;
-            $uploadedFile->path = $file;
-            $uploadedFile->status = 'uploaded';
-            $uploadedFile->save();
-
-            $filesize = $files->getSize();
-            $session = $request->session();
-            $session->put('file', $file);
-            $session->put('filesize', $filesize);
-
-            return response()->json(['message' => 'File uploaded successfully']);
+        if ($request->files) {
+            $files = $request->files;
+            $file2 = $request->file('files');
+            print($file2);
+            $id_tabla_ruta = 10;
+            //$request->session()->put('files', $files);
+            foreach ($files as $archivo) {
+                $tempFile = $archivo;
+                $filename = $archivo->getClientOriginalName();
+                $filepath = public_path('uploads/');
+                $file = $filepath . $filename;
+                $archivos_temporales = new SubirArchivosTemporales();
+                $archivos_temporales->RUTA = $file;
+                $archivos_temporales->ID_TABLA_RUTA = $id_tabla_ruta;
+                $archivos_temporales->save();
+                move_uploaded_file($tempFile, $file);
+                session()->put('nombre', 'Darwin');
+                // Store a file in session
+            }
+            return response()->json(['success' => true, 'id_tabla_ruta' => $id_tabla_ruta, 'message' => 'File uploaded successfully']);
         } else {
             return response()->json(['success' => false, 'message' => 'No file uploaded']);
         }
@@ -83,74 +86,123 @@ class FileController extends Controller
     {
         //date_default_timezone_set("America/New_York");
         header("Content-Type: text/event-stream\n\n");
+        // Get a file from session
+        $id_tabla_ruta = $request->get('id_tabla_ruta');
+        $total_files_size = $request->get('total_files_size');
+        // $files_size = str_replace('.','', $total_files_size);
+        $archivos_subidos = SubirArchivosTemporales::where('id_tabla_ruta', $id_tabla_ruta)->get();
 
-        // $counter = rand(1, 10);
-        // while (1) {
-        //     // Every second, sent a "ping" event.
+        $k = 0;
+        $uploadedBytes = 0;
+        $progress = 0;
+        foreach($archivos_subidos as $archivo){
+            echo 'archivo: '. $archivo->ID_TABLA_RUTA . "\n";
+            $file = $archivo->RUTA;
+            $data = file($file);
+            $row = array();
+            $i = 0;
 
-        //     echo "event: ping\n";
-        //     $curDate = date(DATE_ISO8601);
-        //     echo 'data: {"time": "' . $curDate . '"}';
-        //     echo "\n\n";
+            foreach($data as $lines){
+                $row[] = explode(';', $lines);
 
-        //     // Send a simple message at random intervals.
+                // Update progress percentage and send SSE update to client
+                    $uploadedBytes += strlen($lines);
+                    // echo  'bytes: '. $uploadedBytes . "\n" ;
+                    $progress = round(($uploadedBytes / $total_files_size) * 100);
+                    // echo 'progress: '. $progress . "\n";
+                    echo "event: message\n";
+                    // $sseData = ['progress' => $progress];
+                    // $sseDataStr = json_encode($sseData);
+                    echo 'data: {"progress": "' . $progress . '"}';
+                    // echo 'data: {"uploadedBytes": "' . $uploadedBytes . '"}';
+                    // echo 'data: {"files_size": "' . $files_size . '"}';
+                    echo "\n\n";
+                    // echo "data: {$sseDataStr}\n\n";
+                    ob_flush();
+                    flush();
+                    sleep(0.2);
 
-        //     $counter--;
+                $i++;
+            }
+            $k++;
+        }
 
-        //     if (!$counter) {
-        //         echo 'data: This is a message at time ' . $curDate . "\n\n";
-        //         $counter = rand(1, 10);
+        SubirArchivosTemporales::where('id_tabla_ruta', $id_tabla_ruta)->delete();
+        return $archivos_subidos;
+        // Remove a file from session
+        //$request->session()->forget('file');
+        // $files = $request->files;
+        //     $filesize = 4429306 ;
+        //     $k = 0;
+        //     foreach ($files as $archivo) {
+        //         $tempFile = $archivo;
+        //         $filename = $archivo->getClientOriginalName();
+        //         $filepath = public_path('uploads/');
+        //         $file = $filepath . $filename;
+        //         move_uploaded_file($tempFile, $file);
+
+        //         $data = file($file);
+        //         $uploadedBytes = 0;
+        //         foreach ($data as $lines) {
+        //             $row[] = explode(';', $lines);
+        //             // echo $row[$i][0] . "\n";
+        //             // echo $row[$i][1] . "\n";
+
+
+        //             // Update progress percentage and send SSE update to client
+        //             $uploadedBytes += strlen($lines);
+        //             // echo  'bytes: '. $uploadedBytes . "\n" ;
+        //             $progress = round(($uploadedBytes / $filesize) * 100);
+        //             // echo 'progress: '. $progress . "\n";
+        //             echo "event: message\n";
+        //             $sseData = ['progress' => $progress];
+        //             $sseDataStr = json_encode($sseData);
+        //             echo 'data: {"progress": "' . $progress . '"}';
+        //             echo "\n\n";
+        //             // echo "data: {$sseDataStr}\n\n";
+        //             ob_flush();
+        //             flush();
+        //             sleep(0.2);
+        //             $k++;
+        //         }
         //     }
 
+        // $session = $request->session();
+        // $file = $session->get('file');
+        // $filesize = $session->get('filesize');
+        // $filesize = 2214653;
+        // $uploadedBytes = 0;
+        // $file = 'C:\xampp\htdocs\projects\upload-files\public\uploads/PRUEBA_INFORME_PITALITO.xlsx';
+        // $data = file($file);
+        // $row = array();
+        // $i = 0;
+        // $response = new StreamedResponse();
+        // foreach ($data as $lines) {
+        //     $row[] = explode(';', $lines);
+        //     // echo $row[$i][0] . "\n";
+        //     // echo $row[$i][1] . "\n";
+
+
+        //     // Update progress percentage and send SSE update to client
+        //     $uploadedBytes += strlen($lines);
+        //     // echo  'bytes: '. $uploadedBytes . "\n" ;
+        //     $progress = round(($uploadedBytes / $filesize) * 100);
+        //     // echo 'progress: '. $progress . "\n";
+        //     echo "event: message\n";
+        //     $sseData = ['progress' => $progress];
+        //     $sseDataStr = json_encode($sseData);
+        //     echo 'data: {"progress": "' . $progress . '"}';
+        //     echo "\n\n";
+        //     // echo "data: {$sseDataStr}\n\n";
         //     ob_flush();
         //     flush();
-        //     sleep(1);
+
+
+        //     sleep(0.2);
+
+        //     // $i++;
         // }
-
-        $session = $request->session();
-        $file = $session->get('file');
-        $filesize = $session->get('filesize');
-        $filesize = 2214653;
-        $uploadedBytes = 0;
-        $file = 'C:\xampp\htdocs\projects\upload-files\public\uploads/PRUEBA_INFORME_PITALITO.xlsx';
-        $data = file($file);
-        $row = array();
-        $i = 0;
-        $response = new StreamedResponse();
-        foreach ($data as $lines) {
-            $row[] = explode(';', $lines);
-            // echo $row[$i][0] . "\n";
-            // echo $row[$i][1] . "\n";
-
-
-            // Update progress percentage and send SSE update to client
-            $uploadedBytes += strlen($lines);
-            // echo  'bytes: '. $uploadedBytes . "\n" ;
-            $progress = round(($uploadedBytes / $filesize) * 100);
-            // echo 'progress: '. $progress . "\n";
-            echo "event: message\n";
-            $sseData = ['progress' => $progress];
-            $sseDataStr = json_encode($sseData);
-            echo 'data: {"progress": "' . $progress . '"}';
-            echo "\n\n";
-            // echo "data: {$sseDataStr}\n\n";
-            ob_flush();
-            flush();
-
-
-            sleep(0.2);
-
-            // $i++;
-        }
-        return response()->json(['message' => 'File uploaded successfully']);
-        // $response->headers->set('Content-Type', 'text/event-stream');
-        // $response->headers->set('Cache-Control', 'no-cache');
-        // $response->headers->set('X-Accel-Buffering', 'no');
-        // header('Content-Type', 'text/event-stream');
-        // header('Cache-Control', 'no-cache');
-        // header('X-Accel-Buffering', 'no');
-        // $session->forget('filename');
-        // $session->forget('filesize');
+        // return response()->json(['message' => 'File uploaded successfully']);
     }
 
 
