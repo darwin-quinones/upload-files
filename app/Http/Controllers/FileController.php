@@ -66,7 +66,7 @@ class FileController extends Controller
                 $filepath = public_path('uploads/');
                 $file = $filepath . $filename;
                 $archivos_temporales = new SubirArchivosTemporales();
-                $archivos_temporales->RUTA = $file;
+                $archivos_temporales->NAME = $filename;
                 $archivos_temporales->ID_TABLA_RUTA = $id_tabla_ruta;
                 $archivos_temporales->save();
                 move_uploaded_file($tempFile, $file);
@@ -77,44 +77,68 @@ class FileController extends Controller
         }
     }
 
-    public function processFileUploaded(Request $request)
+    public function processFileUploaded2(Request $request)
     {
         //date_default_timezone_set("America/New_York");
         header("Content-Type: text/event-stream\n\n");
         // Get a file from session
         $id_tabla_ruta = $request->get('id_tabla_ruta');
-        $total_files_size = $request->get('total_files_size');
         $archivos_subidos = SubirArchivosTemporales::where('id_tabla_ruta', $id_tabla_ruta)->get();
 
         $k = 0;
         $uploadedBytes = 0;
         $progress = 0;
-        foreach($archivos_subidos as $archivo){
-            echo 'archivo: '. $archivo->ID_TABLA_RUTA . "\n";
-            $file = $archivo->RUTA;
-            $data = file($file);
-            $row = array();
+        $filepath = public_path('uploads/');
+        $total_size = 0;
+        foreach ($archivos_subidos as $archivo) {
+            $file = $filepath . $archivo->NAME;
+            $reader = new \PhpOffice\PhpSpreadsheet\Reader\Xlsx();
+            $spreadsheet = $reader->load($file);
+            $sheet_base = $spreadsheet->getSheet(0);
+            $sheetData = $sheet_base->toArray();
+            //$new_array = implode($sheetData);
+            //$size = strlen(implode($sheetData));
+            //echo $new_array;
+            foreach ($sheetData as $lines) {
+                $new_array = implode($lines);
+                $new_array = str_replace(' ', '', $new_array);
+                $total_size += strlen($new_array);
+            }
+        }
+        foreach ($archivos_subidos as $archivo) {
+            $file = $filepath . $archivo->NAME;
             $i = 0;
+            $reader = new \PhpOffice\PhpSpreadsheet\Reader\Xlsx();
+            $spreadsheet = $reader->load($file);
+            $sheet_base = $spreadsheet->getSheet(0);
+            $sheetData = $sheet_base->toArray();
+            foreach ($sheetData as $lines) {
 
-            foreach($data as $lines){
-                $row[] = explode(';', $lines);
                 // Update progress percentage and send SSE update to client
-                    $uploadedBytes += strlen($lines);
-                    $progress = round(($uploadedBytes / $total_files_size) * 100);
-                    echo "event: message\n";
-                    echo 'data: {"progress": "' . $progress . '"}';
-                    echo "\n\n";
-                    ob_flush();
-                    flush();
-                    sleep(0.2);
+                $new_array = implode($lines);
+                $new_array = str_replace(' ', '', $new_array);
+                $uploadedBytes += strlen($new_array);
+                $progress = round(($uploadedBytes / $total_size) * 100);
+                echo "event: message\n";
+                echo 'data: {"progress": "' . $progress . '"}';
+
+                echo "\n\n";
+                ob_flush();
+                flush();
+                sleep(0.5);
 
                 $i++;
             }
-            $k++;
+            // $k++;
         }
 
         SubirArchivosTemporales::where('id_tabla_ruta', $id_tabla_ruta)->delete();
-        return $archivos_subidos;
+        echo "event: message\n";
+        echo 'data: {"message": "Upload completed successfully. Well done"}';
+        echo "\n\n";
+        ob_flush();
+        flush();
+        // return response()->json(['archivos_subidos' => $archivos_subidos]);
     }
 
     /**
@@ -122,7 +146,7 @@ class FileController extends Controller
      *
      * @return Response
      */
-    public function fileRegister(Request $request)
+    public function processFileUploaded(Request $request)
     {
 
         function clearSpecialCharacters($string)
@@ -136,26 +160,30 @@ class FileController extends Controller
             return strtr(utf8_decode($str), utf8_decode('àáâãäçèéêëìíîïñòóôõöùúûüýÿÀÁÂÃÄÇÈÉÊËÌÍÎÏÑÒÓÔÕÖÙÚÛÜÝ'), 'aaaaaceeeeiiiinooooouuuuyyAAAAACEEEEIIIINOOOOOUUUUY');
         }
 
+        header("Content-Type: text/event-stream\n\n");
+        // Get a file from session
+        $id_tabla_ruta = $request->get('id_tabla_ruta');
+        $total_files_size = $request->get('total_files_size');
+        $archivos_subidos = SubirArchivosTemporales::where('id_tabla_ruta', $id_tabla_ruta)->get();
 
-        if ($request->files) {
-            $mensajes = array();
-            $max_files = 1;
-
-            // if(count($request->files) > $max_files){
-            //     return $mensajes[] = ["mensaje" => "Solo puede subir un maximo de '". $max_files . "' archivos"];
-            // }
+        if ($archivos_subidos) {
             $k = 0;
+            $uploadedBytes = 0;
+            $progress = 0;
+            $filepath = public_path('uploads/');
+            $mensajes = array();
+
             $files = $request->files;
-            $cod_operador_red = '6';
+            $cod_operador_red = '9';
             $consultas = array();
             $elementos = array();
             $valores = array();
 
-            $mes_consolidado = 'Agosto';
-            $ano_factura = '2022';
+            // $mes_consolidado = 'Agosto';
+            // $ano_factura = '2022';
             $id_usuario = 1;
-            // $mes_consolidado = 'Enero';
-            // $ano_factura = '2023';
+            $mes_consolidado = 'Enero';
+            $ano_factura = '2023';
             // TABLES OF QUERIES
             $table_catastro = "catastro_" . strtolower($mes_consolidado) . $ano_factura . "_2";
             $table_facturacion = "facturacion_" . strtolower($mes_consolidado) . $ano_factura . "_2";
@@ -163,20 +191,31 @@ class FileController extends Controller
             $table_refacturacion = "refacturacion_" . strtolower($mes_consolidado) . $ano_factura . "_2";
             $table_fact_reca_cens = "fact_reca_cens_" . strtolower($mes_consolidado) . "_" . $ano_factura . "_2";
 
+
+            $total_size = 0;
+            foreach ($archivos_subidos as $archivo) {
+                $file = $filepath . $archivo->NAME;
+                $reader = new \PhpOffice\PhpSpreadsheet\Reader\Xlsx();
+                $spreadsheet = $reader->load($file);
+                $sheet_base = $spreadsheet->getSheet(0);
+                $sheetData = $sheet_base->toArray();
+                foreach ($sheetData as $lines) {
+                    $new_array = implode($lines);
+                    $new_array = str_replace(' ', '', $new_array);
+                    $total_size += strlen($new_array);
+                }
+            }
+
             switch ($cod_operador_red) {
                     // CASO DE CENS
                 case '9':
                     $operador_red = 'CENS';
-                    foreach ($files as $archivo) {
+                    foreach ($archivos_subidos as $archivo) {
 
                         $reader = new \PhpOffice\PhpSpreadsheet\Reader\Xlsx();
-                        $filename = $archivo->getClientOriginalName();
-                        $tempFile = $archivo;
-                        $filepath = public_path('uploads/');
+                        $filename = $archivo->NAME;
                         $file = $filepath . $filename;
                         $fecha_creacion = date('Y-m-d');
-
-
                         $id_tipo_poblacion = 1;
 
                         $departamento = 'NORTE DE SANTANDER';
@@ -184,15 +223,13 @@ class FileController extends Controller
 
                         // VERIFY IF THE FILE ALREADY EXISTS
                         $query_ruta = ArchivosCargadosCens::where('RUTA', '=', $filename)->first();
-                        if ($query_ruta) {
-                            $mensajes[] = ["mensaje" => "El archivo ya existe", "file" => $file];
-                            break;
-                        }
+                        // if ($query_ruta) {
+                        //     $mensajes[] = ["mensaje" => "El archivo ya existe", "file" => $file];
+                        //     break;
+                        // }
 
                         // INSTANCES
                         $archivos_cargados_cens = new ArchivosCargadosCens();
-
-                        move_uploaded_file($tempFile, $file);
                         switch ($mes_consolidado) {
                             case "Enero":
                                 $id_mes = 1;
@@ -251,9 +288,9 @@ class FileController extends Controller
                         $sheet_base = $spreadsheet->getSheet(0);
                         $sheetData = $sheet_base->toArray();
                         // DELITE 6 FIRST ROWS
-                        for ($e = 0; $e < 6; $e++) {
-                            unset($sheetData[$e]);
-                        }
+                        // for ($e = 0; $e < 6; $e++) {
+                        //     unset($sheetData[$e]);
+                        // }
                         $i = 0;
                         $total_facturacion = 0;
                         $total_recaudo = 0;
@@ -263,7 +300,7 @@ class FileController extends Controller
                             $id_cliente = trim($row[0]);
                             $nombre_cliente = strtoupper(trim($row[1]));
                             $direccion_vivienda = strtoupper(trim($row[2]));
-                            $facturacion =  (trim(str_replace(array('$', ','), '', $row[3])));
+                            $facturacion =  trim(str_replace(array('$', ','), '', $row[3]));
                             $total_facturacion = $total_facturacion + $facturacion;
                             $recaudo =  (trim(str_replace(array('$', ','), '', $row[4])));
                             $total_recaudo = $total_recaudo + $recaudo;
@@ -292,9 +329,24 @@ class FileController extends Controller
                                 'ID_USUARIO' => $id_usuario,
                             );
                             DB::table($table_fact_reca_cens)->insert($values);
+
+                            // $uploadedBytes += strlen($row);
+                            //$uploadedBytes += sizeof($row);
+                            $new_array = implode($row);
+                            $new_array = str_replace(' ', '', $new_array);
+                            $uploadedBytes += strlen($new_array);
+                            echo 'new_array: ' . $new_array;
+                            $progress = round(($uploadedBytes / $total_size) * 100);
+                            echo "event: message\n";
+                            echo 'data: {"progress": "' . $progress . '"}';
+                            //echo 'data: {"uploadedBytes": "' . $uploadedBytes . '"}';
+                            echo "\n\n";
+                            ob_flush();
+                            flush();
+
                             $i++;
                         }
-                        // FINAL FOREACH
+                        //FINAL FOREACH
                         $consultas[] = DB::table($table_fact_reca_cens)
                             ->select([
                                 DB::raw('COUNT(*) AS TOTAL'),
@@ -304,12 +356,19 @@ class FileController extends Controller
                             ])->where('ID_TABLA_RUTA', '=', $id_tabla_ruta_cens)->get();
                         $mensajes[] = ['mensaje' => 'Archivo cargado con exito', 'file' => $file];
                         $valores[] = ['total_facturacion' => $total_facturacion, 'total_recaudo' => $total_recaudo, 'total_cartera' => $total_cartera];
-
+                        // DELETE FILE FROM DATABASE AND UPLOADS
+                        SubirArchivosTemporales::where('id_tabla_ruta', $id_tabla_ruta)->delete();
                         unlink($file);
                         $k++;
                     }
                     // FIN FOREACH FILES
-                    return ["resultado" => $consultas, "mensajes" => $mensajes, "elementos" => $elementos, "valores" => $valores];
+
+                    echo "event: message\n";
+                    echo 'data: {"message": "Upload completed successfully. Well done"}';
+                    echo "\n\n";
+                    ob_flush();
+                    flush();
+                    //return ["resultado" => $consultas, "mensajes" => $mensajes, "elementos" => $elementos, "valores" => $valores];
                     // FIN CASO DE CENS
                     break;
                 case '8':

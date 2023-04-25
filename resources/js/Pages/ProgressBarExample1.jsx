@@ -25,11 +25,15 @@ export default function ProgressBarExample1() {
         const URL_PROCESS_FILES_WITH_DATA = URL_PROCESS + `?id_tabla_ruta=${id_tabla_ruta}&total_files_size=${totalFileSize}`
         var evtSource = new EventSource(URL_PROCESS_FILES_WITH_DATA);
 
+
         evtSource.addEventListener("message", function (e) {
             var obj = JSON.parse(e.data);
-            console.log(obj.progress);
-            setProgress(obj.progress);
+            var p = parseInt(obj.progress)
+            setProgress(p)
+            console.log('progress', p)
+            console.log('obj.message', obj.message)
         }, false);
+
 
         evtSource.addEventListener('error', (event) => {
             console.log(event);
@@ -75,6 +79,7 @@ export default function ProgressBarExample1() {
                 // check for error response
                 if (data.success) {
                     getEventSource(data.id_tabla_ruta, calculateTotalFileSize)
+
                 } else {
                     console.log('something went wrong')
                 }
