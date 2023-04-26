@@ -27,6 +27,8 @@ use App\Models\TipoClienteAire;
 use App\Models\TipoClienteElectrohuila;
 use App\Models\TipoConceptoAire;
 use App\Models\TipoServicio;
+use Illuminate\Support\Facades\Storage;
+use Illuminate\Validation\Rules\Exists;
 
 // LIBRERIA PHP SPREADSHEET
 require '../vendor/autoload.php';
@@ -60,20 +62,61 @@ class FileController extends Controller
         if ($request->files) {
             $files = $request->files;
             $id_tabla_ruta = 10;
+            $existing_files = 0;
+            $cod_operador_red = '8';
+            $exist = false;
             foreach ($files as $archivo) {
                 $tempFile = $archivo;
                 $filename = $archivo->getClientOriginalName();
                 $filepath = public_path('uploads/');
                 $file = $filepath . $filename;
+
+                // FIRST VERIFY IF FILE ALREADY EXISTS TO DELETE
+                if (file_exists($file)) {
+                    unlink($file);
+                }
+                // VERIFY IF THE FILE ALREADY EXISTS
+                switch ($cod_operador_red) {
+                    case '9':
+                        // CENS
+                        $query_ruta = ArchivosCargadosCens::where('RUTA', '=', $filename)->first();
+                        if ($query_ruta) {
+                            $existing_files++;
+                            $exist = true;
+                            break;
+                        }
+                    case '8':
+                        // ELECTROHUILA
+                        $query_ruta = ArchivosCargadosCatastro::where('RUTA', '=', $filename)->first();
+                        if ($query_ruta) {
+                            $existing_files++;
+                            $exist = true;
+                            break;
+                        }
+
+                    case '7':
+                        //
+                        break;
+                }
+
+
+
                 $archivos_temporales = new SubirArchivosTemporales();
                 $archivos_temporales->NAME = $filename;
                 $archivos_temporales->ID_TABLA_RUTA = $id_tabla_ruta;
+                $archivos_temporales->EXISTE = $exist;
                 $archivos_temporales->save();
+
+
+                // THEN UPLOAD THE NEW FILE
                 move_uploaded_file($tempFile, $file);
+            }
+            if ($existing_files == count($files)) {
+                return response()->json(['warning' => 'Files already exist']);
             }
             return response()->json(['success' => true, 'id_tabla_ruta' => $id_tabla_ruta, 'message' => 'File uploaded successfully']);
         } else {
-            return response()->json(['success' => false, 'message' => 'No file uploaded']);
+            return response()->json(['error' => true, 'message' => 'No file uploaded']);
         }
     }
 
@@ -90,6 +133,8 @@ class FileController extends Controller
         $progress = 0;
         $filepath = public_path('uploads/');
         $total_size = 0;
+        $time_start = microtime(true);
+        $i = 0;
         foreach ($archivos_subidos as $archivo) {
             $file = $filepath . $archivo->NAME;
             $reader = new \PhpOffice\PhpSpreadsheet\Reader\Xlsx();
@@ -103,41 +148,53 @@ class FileController extends Controller
                 $new_array = implode($lines);
                 $new_array = str_replace(' ', '', $new_array);
                 $total_size += strlen($new_array);
-            }
-        }
-        foreach ($archivos_subidos as $archivo) {
-            $file = $filepath . $archivo->NAME;
-            $i = 0;
-            $reader = new \PhpOffice\PhpSpreadsheet\Reader\Xlsx();
-            $spreadsheet = $reader->load($file);
-            $sheet_base = $spreadsheet->getSheet(0);
-            $sheetData = $sheet_base->toArray();
-            foreach ($sheetData as $lines) {
-
-                // Update progress percentage and send SSE update to client
-                $new_array = implode($lines);
-                $new_array = str_replace(' ', '', $new_array);
-                $uploadedBytes += strlen($new_array);
-                $progress = round(($uploadedBytes / $total_size) * 100);
-                echo "event: message\n";
-                echo 'data: {"progress": "' . $progress . '"}';
-
-                echo "\n\n";
-                ob_flush();
-                flush();
-                sleep(0.5);
-
                 $i++;
             }
-            // $k++;
         }
+        $time_end = microtime(true);
+
+        //dividing with 60 will give the execution time in minutes otherwise seconds
+        $seconds = $time_end - $time_start;
+        $execution_time = $seconds / 60;
+
+        //execution time of the script
+        echo 'Total Execution Time: ' . $execution_time . ' Mins';
+        echo ' seconds: ' . $seconds;
+        echo ' total size: ' . $total_size;
+        echo ' total rows: ' . $i;
+        // foreach ($archivos_subidos as $archivo) {
+        //     $file = $filepath . $archivo->NAME;
+        //     $i = 0;
+        //     $reader = new \PhpOffice\PhpSpreadsheet\Reader\Xlsx();
+        //     $spreadsheet = $reader->load($file);
+        //     $sheet_base = $spreadsheet->getSheet(0);
+        //     $sheetData = $sheet_base->toArray();
+        //     foreach ($sheetData as $lines) {
+
+        //         // Update progress percentage and send SSE update to client
+        //         $new_array = implode($lines);
+        //         $new_array = str_replace(' ', '', $new_array);
+        //         $uploadedBytes += strlen($new_array);
+        //         $progress = round(($uploadedBytes / $total_size) * 100);
+        //         echo "event: message\n";
+        //         echo 'data: {"progress": "' . $progress . '"}';
+
+        //         echo "\n\n";
+        //         ob_flush();
+        //         flush();
+        //         sleep(0.5);
+
+        //         $i++;
+        //     }
+        // $k++;
+        // }
 
         SubirArchivosTemporales::where('id_tabla_ruta', $id_tabla_ruta)->delete();
-        echo "event: message\n";
-        echo 'data: {"message": "Upload completed successfully. Well done"}';
-        echo "\n\n";
-        ob_flush();
-        flush();
+        // echo "event: message\n";
+        // echo 'data: {"message": "Upload completed successfully. Well done"}';
+        // echo "\n\n";
+        // ob_flush();
+        // flush();
         // return response()->json(['archivos_subidos' => $archivos_subidos]);
     }
 
@@ -163,8 +220,10 @@ class FileController extends Controller
         header("Content-Type: text/event-stream\n\n");
         // Get a file from session
         $id_tabla_ruta = $request->get('id_tabla_ruta');
-        $total_files_size = $request->get('total_files_size');
-        $archivos_subidos = SubirArchivosTemporales::where('id_tabla_ruta', $id_tabla_ruta)->get();
+        //$total_files_size = $request->get('total_files_size');
+        $archivos_subidos = SubirArchivosTemporales::where('ID_TABLA_RUTA', $id_tabla_ruta)->where('EXISTE', false)->get();
+        // DELETE FILE FROM DATABASE AND UPLOADS
+        SubirArchivosTemporales::where('id_tabla_ruta', $id_tabla_ruta)->delete();
 
         if ($archivos_subidos) {
             $k = 0;
@@ -174,16 +233,16 @@ class FileController extends Controller
             $mensajes = array();
 
             $files = $request->files;
-            $cod_operador_red = '9';
+            $cod_operador_red = '8';
             $consultas = array();
             $elementos = array();
             $valores = array();
 
-            // $mes_consolidado = 'Agosto';
-            // $ano_factura = '2022';
+            $mes_consolidado = 'Agosto';
+            $ano_factura = '2022';
             $id_usuario = 1;
-            $mes_consolidado = 'Enero';
-            $ano_factura = '2023';
+            // $mes_consolidado = 'Enero';
+            // $ano_factura = '2023';
             // TABLES OF QUERIES
             $table_catastro = "catastro_" . strtolower($mes_consolidado) . $ano_factura . "_2";
             $table_facturacion = "facturacion_" . strtolower($mes_consolidado) . $ano_factura . "_2";
@@ -223,10 +282,10 @@ class FileController extends Controller
 
                         // VERIFY IF THE FILE ALREADY EXISTS
                         $query_ruta = ArchivosCargadosCens::where('RUTA', '=', $filename)->first();
-                        // if ($query_ruta) {
-                        //     $mensajes[] = ["mensaje" => "El archivo ya existe", "file" => $file];
-                        //     break;
-                        // }
+                        if ($query_ruta) {
+                            $mensajes[] = ["mensaje" => "El archivo ya existe", "file" => $file];
+                            continue;
+                        }
 
                         // INSTANCES
                         $archivos_cargados_cens = new ArchivosCargadosCens();
@@ -339,7 +398,8 @@ class FileController extends Controller
                             $progress = round(($uploadedBytes / $total_size) * 100);
                             echo "event: message\n";
                             echo 'data: {"progress": "' . $progress . '"}';
-                            //echo 'data: {"uploadedBytes": "' . $uploadedBytes . '"}';
+                            // echo 'data: {"uploadedBytes": "' . $uploadedBytes . '"}';
+                            // echo 'data: {"total_size": "' . $total_size . '"}';
                             echo "\n\n";
                             ob_flush();
                             flush();
@@ -356,28 +416,26 @@ class FileController extends Controller
                             ])->where('ID_TABLA_RUTA', '=', $id_tabla_ruta_cens)->get();
                         $mensajes[] = ['mensaje' => 'Archivo cargado con exito', 'file' => $file];
                         $valores[] = ['total_facturacion' => $total_facturacion, 'total_recaudo' => $total_recaudo, 'total_cartera' => $total_cartera];
-                        // DELETE FILE FROM DATABASE AND UPLOADS
-                        SubirArchivosTemporales::where('id_tabla_ruta', $id_tabla_ruta)->delete();
+
                         unlink($file);
                         $k++;
                     }
                     // FIN FOREACH FILES
-
+                    $array =  ["resultado" => $consultas, "mensajes" => $mensajes, "elementos" => $elementos, "valores" => $valores];
+                    //return $array;
                     echo "event: message\n";
-                    echo 'data: {"message": "Upload completed successfully. Well done"}';
-                    echo "\n\n";
+                    echo "data: " . json_encode($array) . "\n\n";
                     ob_flush();
                     flush();
-                    //return ["resultado" => $consultas, "mensajes" => $mensajes, "elementos" => $elementos, "valores" => $valores];
+
                     // FIN CASO DE CENS
                     break;
                 case '8':
                     $operador_red = 'ELECTROHUILA';
-                    foreach ($files as $archivo) {
+                    foreach ($archivos_subidos as $archivo) {
                         $reader = new \PhpOffice\PhpSpreadsheet\Reader\Xlsx();
-                        $filename = $archivo->getClientOriginalName();
+                        $filename = $archivo->NAME;
                         $tempFile = $archivo;
-                        $filepath = public_path('uploads/');
                         $file = $filepath . $filename;
 
                         $fecha_creacion = date('Y-m-d');
@@ -394,14 +452,13 @@ class FileController extends Controller
                         $query_ruta = ArchivosCargadosCatastro::where('RUTA', '=', $filename)->first();
                         if ($query_ruta) {
                             $mensajes[] = ["mensaje" => "El archivo ya existe", "file" => $file];
-                            break;
+                            continue;
                         }
                         //INSTANCES
                         $archivos_catastro = new ArchivosCargadosCatastro();
                         $archivos_facturacion = new ArchivosCargadosFacturacion();
                         $archivos_recaudo = new ArchivosCargadosRecaudo();
 
-                        move_uploaded_file($tempFile, $file);
                         switch ($mes_consolidado) {
                             case "Enero":
                                 $id_mes = 1;
@@ -487,13 +544,13 @@ class FileController extends Controller
                         $spreadsheet = $reader->load($file);
                         // $sheet_base = $spreadsheet->getSheetByName('BASE');
                         $sheet_base = $spreadsheet->getSheet(0);
-                        $number_rows = $sheet_base->getHighestDataRow();
                         $sheetData = $sheet_base->toArray();
                         //SE ELIMINA LA PRIMERA FILA
                         unset($sheetData[0]);
                         $i = 0;
                         $total_deuda_corriente = 0;
                         $total_deuda_cuota = 0;
+                        $deuda_cuota = 0;
                         $total_importe_trans_reca = 0;
                         $total_importe_trans_fact = 0;
                         $total_valor_recibo = 0;
@@ -529,7 +586,7 @@ class FileController extends Controller
 
                             // PREGUNTAR AQUÍ AL ING
                             $deuda_corriente = trim(str_replace(",", ".", $row[26]));
-                            $deuda_cuota = 0;
+
                             //$deuda_cuota = trim(str_replace(",", ".", $row[22]));
                             $id_estado_suministro = 0;
                             $total_deuda_corriente = $total_deuda_corriente + $deuda_corriente;
@@ -648,6 +705,23 @@ class FileController extends Controller
                             );
 
                             DB::table($table_recaudo)->insert($recaudo_values);
+
+                            // $uploadedBytes += strlen($row);
+                            //$uploadedBytes += sizeof($row);
+                            $new_array = implode($row);
+                            $new_array = str_replace(' ', '', $new_array);
+                            $uploadedBytes += strlen($new_array);
+                            echo 'new_array: ' . $new_array;
+                            $progress = round(($uploadedBytes / $total_size) * 100);
+                            echo "event: message\n";
+                            echo 'data: {"progress": "' . $progress . '"}';
+                            // echo 'data: {"uploadedBytes": "' . $uploadedBytes . '"}';
+                            // echo 'data: {"total_size": "' . $total_size . '"}';
+                            echo "\n\n";
+                            ob_flush();
+                            flush();
+
+
                             $i++;
                         }
                         // FINAL FOREACH SHEETDATA
@@ -683,8 +757,12 @@ class FileController extends Controller
                         $k++;
                     }
                     // FIN FOREACH FILES
-                    return ["resultado" => $consultas, "mensajes" => $mensajes, "elementos" => $elementos, "valores" => $valores];
-                    break;
+                    $array =  ["resultado" => $consultas, "mensajes" => $mensajes, "elementos" => $elementos, "valores" => $valores];
+                    //return $array;
+                    echo "event: message\n";
+                    echo "data: " . json_encode($array) . "\n\n";
+                    ob_flush();
+                    flush();
                 case '7':
                     $operador_red = 'AIR-E';
 

@@ -26,17 +26,26 @@ export default function ProgressBarExample1() {
         var evtSource = new EventSource(URL_PROCESS_FILES_WITH_DATA);
 
 
-        evtSource.addEventListener("message", function (e) {
-            var obj = JSON.parse(e.data);
-            var p = parseInt(obj.progress)
-            setProgress(p)
-            console.log('progress', p)
-            console.log('obj.message', obj.message)
+        evtSource.addEventListener("message", function (event) {
+            const obj = JSON.parse(event.data);
+            console.log('obj: ', obj)
+            var fileProgress = parseInt(obj.progress)
+            setProgress(fileProgress)
+            if (isNaN(fileProgress)) {
+                setProgress(100);
+            }
+            if(obj.resultado){
+                console.log('obj.resultado: '+ obj.resultado)
+                console.log('Ha terminado el proceso')
+                setProgress(100);
+                alert('Los archivos se han cargado exitosamente')
+                setProgress(0)
+            }
         }, false);
 
 
         evtSource.addEventListener('error', (event) => {
-            console.log(event);
+            //console.log(event);
             evtSource.close();
         });
 
@@ -77,10 +86,13 @@ export default function ProgressBarExample1() {
                 console.log(data);
                 console.log(response)
                 // check for error response
-                if (data.success) {
+                if (data.success === true) {
                     getEventSource(data.id_tabla_ruta, calculateTotalFileSize)
-
-                } else {
+                }
+                else if(data.warning){
+                    alert('archivos ya existen')
+                }
+                else if(data.error === true) {
                     console.log('something went wrong')
                 }
             })
