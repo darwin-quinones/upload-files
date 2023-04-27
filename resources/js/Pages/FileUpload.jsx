@@ -1,28 +1,48 @@
-import React from 'react';
-import Authenticated from '@/Layouts/AuthenticatedLayout';
-// import { Head, useForm, usePage } from '@inertiajs/inertia-react';
-import { Head, useForm, usePage } from '@inertiajs/react';
-  //base end point url
-const FILE_UPLOAD_BASE_ENDPOINT = "http://localhost:8000";
-export default function Dashboard(props) {
-    const { files } = usePage().props
+import React, { useState } from "react";
 
-    const { data, setData, errors, post, progress } = useForm({
-        title: "",
-        file: null,
-    });
+export default function Dashboard() {
+    const [files, setFiles] = useState('');
+    //state for checking file size
+    const [fileSize, setFileSize] = useState(true);
+    const [filesNumber, setFilesNumber] = useState(true)
+    // for file upload progress message
+    const [fileUploadProgress, setFileUploadProgress] = useState(false);
+    //for displaying response message
+    const [fileUploadResponse, setFileUploadResponse] = useState(null);
+    //base end point url
+    const FILE_UPLOAD_BASE_ENDPOINT = "http://localhost:8000";
 
     const uploadFileHandler = (event) => {
-        //setFiles(event.target.files);
-        setData("file", event.target.files)
-    }
+        setFiles(event.target.files);
+    };
 
     const fileSubmitHandler = (event) => {
         event.preventDefault();
+        setFileSize(true);
+        setFileUploadProgress(true);
+        setFileUploadResponse(null);
 
         const formData = new FormData();
+        var totalFilesSize = 0;
+        let allowedFilesSize = 50 // 10 MB
+        let allowedFilesNumber = 20
         for (let i = 0; i < files.length; i++) {
+            var filesize = files[i].size / 1024;
+            filesize = (Math.round((filesize / 1024) * 100) / 100);
+            totalFilesSize = totalFilesSize + filesize;
+            //formData.append('files', files[i])
             formData.append(files[i].name, files[i])
+        }
+        console.log(totalFilesSize)
+        if (totalFilesSize > allowedFilesSize) {
+            setFileSize(false);
+            setFileUploadProgress(false);
+            setFileUploadResponse(null);
+            return;
+        } if (files.length > allowedFilesNumber) {
+            setFilesNumber(false)
+            setFileUploadProgress(false);
+            setFileUploadResponse(null);
         }
 
         const requestOptions = {
@@ -31,135 +51,36 @@ export default function Dashboard(props) {
         };
         fetch(FILE_UPLOAD_BASE_ENDPOINT + '/file-upload', requestOptions)
             .then(async response => {
-                // const isJson = response.headers.get('content-type')?.includes('application/json');
-                const data = await response.json();
-                console.log(response.ok);
-                // check for error response
-                if (response.ok && data) {
+                const isJson = response.headers.get('content-type')?.includes('application/json');
+                const data = isJson && await response.json();
 
-                    alert('archivo cargado con exito')
-                }
+                // check for error response
                 if (!response.ok) {
                     // get error message
                     const error = (data && data.message) || response.status;
+                    setFileUploadResponse(data.message);
                     return Promise.reject(error);
-
                 }
+
+                console.log(data.message);
+                setFileUploadResponse(data.message);
             })
             .catch(error => {
                 console.error('Error while uploading file!', error);
-            })
-
-    }
-
-
-    // function handleSubmit(e) {
-    //     e.preventDefault();
-    //     post(route("file.upload.store"));
-
-    //     setData("title", "")
-    //     setData("file", null)
-    // }
+            });
+        setFileUploadProgress(false);
+    };
 
     return (
-        <Authenticated
-            auth={props.auth}
-            errors={props.errors}
-            header={<h2 className="font-semibold text-xl text-gray-800 leading-tight">Laravel React JS File Upload Example - ItSolutionStuff.com</h2>}
-        >
-            <Head title="Posts" />
 
-            <div className="py-12">
-                <div className="max-w-7xl mx-auto sm:px-6 lg:px-8">
-                    <div className="bg-white overflow-hidden shadow-sm sm:rounded-lg">
-                        <div className="p-6 bg-white border-b border-gray-200">
+        <form onSubmit={fileSubmitHandler}>
+            <input type="file" multiple onChange={uploadFileHandler} />
+            <button type='submit'>Upload</button>
+            {!fileSize && <p style={{ color: 'red' }}>File size exceeded!!</p>}
+            {!filesNumber && <p style={{ color: 'red' }}>Files Number exceeded!!</p>}
+            {fileUploadProgress && <p style={{ color: 'red' }}>Uploading File(s)</p>}
+            {fileUploadResponse != null && <p style={{ color: 'green' }}>{fileUploadResponse}</p>}
+        </form>
 
-                            <form name="createForm" onSubmit={fileSubmitHandler}>
-                                <div className="flex flex-col">
-                                    <div className="mb-4">
-                                        <label className="">Title</label>
-                                        <input
-                                            type="text"
-                                            className="w-full px-4 py-2"
-                                            label="Title"
-                                            name="title"
-                                            value={data.title}
-                                            onChange={uploadFileHandler}
-                                        />
-                                        <span className="text-red-600">
-                                            {errors.title}
-                                        </span>
-                                    </div>
-                                    <div className="mb-0">
-                                        <label className="">File</label>
-                                        <input
-                                            type="file"
-                                            className="w-full px-4 py-2"
-                                            label="File"
-                                            name="file"
-                                            onChange={uploadFileHandler}
-                                        />
-                                        <span className="text-red-600">
-                                            {errors.file}
-                                        </span>
-                                    </div>
-                                </div>
-
-                                {progress && (
-                                  <div className="w-full bg-gray-200 rounded-full dark:bg-gray-700">
-                                    <div className="bg-blue-600 text-xs font-medium text-blue-100 text-center p-0.5 leading-none rounded-full" width={progress.percentage}> {progress.percentage}%</div>
-                                  </div>
-                                )}
-
-                                <div className="mt-4">
-                                    <button
-                                        type="submit"
-                                        className="px-6 py-2 font-bold text-white bg-green-500 rounded"
-                                    >
-                                        Save
-                                    </button>
-                                </div>
-                            </form>
-
-                            <br/>
-
-                            <h1>Uploaded File List:</h1>
-                            <table className="table-fixed w-full">
-                                <thead>
-                                    <tr className="bg-gray-100">
-                                        <th className="px-4 py-2 w-20">No.</th>
-                                        <th className="px-4 py-2">Title</th>
-                                        <th className="px-4 py-2">Image</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    {files.map(({ id, title, name }, key) => (
-                                        <tr key={key}>
-                                            <td className="border px-4 py-2">{ id }</td>
-                                            <td className="border px-4 py-2">{ title }</td>
-                                            <td className="border px-4 py-2">
-                                                <img src={name} width="200px" />
-                                            </td>
-                                        </tr>
-                                    ))}
-
-                                    {files.length === 0 && (
-                                        <tr>
-                                            <td
-                                                className="px-6 py-4 border-t"
-                                                colSpan="4"
-                                            >
-                                                No contacts found.
-                                            </td>
-                                        </tr>
-                                    )}
-                                </tbody>
-                            </table>
-
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </Authenticated>
     );
 }

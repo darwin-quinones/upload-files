@@ -4,17 +4,18 @@ namespace App\Http\Controllers;
 
 use Illuminate\Support\Facades\DB;
 use Illuminate\Http\Request;
-use Symfony\Component\HttpFoundation\StreamedResponse;
 use Inertia\Inertia;
 use Illuminate\Support\Facades\Validator;
 use App\Models\File;
-use App\Models\SubirArchivosTemporales;
-use App\Models\UploadFile;
 use App\Models\ArchivosCargadosCatastro;
 use App\Models\ArchivosCargadosFacturacion;
 use App\Models\ArchivosCargadosRecaudo;
 use App\Models\ArchivosCargadosRefacturacion;
 use App\Models\ArchivosCargadosCens;
+use App\Models\ArchivosCargadosOYMRI;
+use App\Models\FacturacionOYMRI;
+use App\Models\ConceptosFacturacion;
+use App\Models\Empresa;
 use App\Models\Tarifa;
 use App\Models\TarifaAire;
 use App\Models\Corregimiento;
@@ -27,8 +28,6 @@ use App\Models\TipoClienteAire;
 use App\Models\TipoClienteElectrohuila;
 use App\Models\TipoConceptoAire;
 use App\Models\TipoServicio;
-use Illuminate\Support\Facades\Storage;
-use Illuminate\Validation\Rules\Exists;
 
 // LIBRERIA PHP SPREADSHEET
 require '../vendor/autoload.php';
@@ -47,164 +46,15 @@ class FileController extends Controller
         $files = File::latest()->get();
         return Inertia::render('FileUpload', compact('files'));
     }
-    public function fileProgressBar()
-    {
-        return Inertia::render('ProgressBarExample1');
-    }
-
-    /**
-     ** UPLOAD FILE AND THE READ IT
-     *
-     */
-
-    public function uploadFiles(Request $request)
-    {
-        if ($request->files) {
-            $files = $request->files;
-            $id_tabla_ruta = 10;
-            $existing_files = 0;
-            $cod_operador_red = '8';
-            $exist = false;
-            foreach ($files as $archivo) {
-                $tempFile = $archivo;
-                $filename = $archivo->getClientOriginalName();
-                $filepath = public_path('uploads/');
-                $file = $filepath . $filename;
-
-                // FIRST VERIFY IF FILE ALREADY EXISTS TO DELETE
-                if (file_exists($file)) {
-                    unlink($file);
-                }
-                // VERIFY IF THE FILE ALREADY EXISTS
-                switch ($cod_operador_red) {
-                    case '9':
-                        // CENS
-                        $query_ruta = ArchivosCargadosCens::where('RUTA', '=', $filename)->first();
-                        if ($query_ruta) {
-                            $existing_files++;
-                            $exist = true;
-                            break;
-                        }
-                    case '8':
-                        // ELECTROHUILA
-                        $query_ruta = ArchivosCargadosCatastro::where('RUTA', '=', $filename)->first();
-                        if ($query_ruta) {
-                            $existing_files++;
-                            $exist = true;
-                            break;
-                        }
-
-                    case '7':
-                        //
-                        break;
-                }
-
-
-
-                $archivos_temporales = new SubirArchivosTemporales();
-                $archivos_temporales->NAME = $filename;
-                $archivos_temporales->ID_TABLA_RUTA = $id_tabla_ruta;
-                $archivos_temporales->EXISTE = $exist;
-                $archivos_temporales->save();
-
-
-                // THEN UPLOAD THE NEW FILE
-                move_uploaded_file($tempFile, $file);
-            }
-            if ($existing_files == count($files)) {
-                return response()->json(['warning' => 'Files already exist']);
-            }
-            return response()->json(['success' => true, 'id_tabla_ruta' => $id_tabla_ruta, 'message' => 'File uploaded successfully']);
-        } else {
-            return response()->json(['error' => true, 'message' => 'No file uploaded']);
-        }
-    }
-
-    public function processFileUploaded(Request $request)
-    {
-        //date_default_timezone_set("America/New_York");
-        header("Content-Type: text/event-stream\n\n");
-        // Get a file from session
-        $id_tabla_ruta = $request->get('id_tabla_ruta');
-        $archivos_subidos = SubirArchivosTemporales::where('id_tabla_ruta', $id_tabla_ruta)->get();
-
-        $k = 0;
-        $uploadedBytes = 0;
-        $progress = 0;
-        $filepath = public_path('uploads/');
-        $total_size = 0;
-        $time_start = microtime(true);
-        $i = 0;
-        foreach ($archivos_subidos as $archivo) {
-            $file = $filepath . $archivo->NAME;
-            $reader = new \PhpOffice\PhpSpreadsheet\Reader\Xlsx();
-            $spreadsheet = $reader->load($file);
-            $sheet_base = $spreadsheet->getSheet(0);
-            $sheetData = $sheet_base->toArray();
-            //$new_array = implode($sheetData);
-            //$size = strlen(implode($sheetData));
-            //echo $new_array;
-            foreach ($sheetData as $lines) {
-                $new_array = implode($lines);
-                $new_array = str_replace(' ', '', $new_array);
-                $total_size += strlen($new_array);
-                $i++;
-            }
-        }
-        $time_end = microtime(true);
-
-        //dividing with 60 will give the execution time in minutes otherwise seconds
-        $seconds = $time_end - $time_start;
-        $execution_time = $seconds / 60;
-
-        //execution time of the script
-        echo 'Total Execution Time: ' . $execution_time . ' Mins';
-        echo ' seconds: ' . $seconds;
-        echo ' total size: ' . $total_size;
-        echo ' total rows: ' . $i;
-        // foreach ($archivos_subidos as $archivo) {
-        //     $file = $filepath . $archivo->NAME;
-        //     $i = 0;
-        //     $reader = new \PhpOffice\PhpSpreadsheet\Reader\Xlsx();
-        //     $spreadsheet = $reader->load($file);
-        //     $sheet_base = $spreadsheet->getSheet(0);
-        //     $sheetData = $sheet_base->toArray();
-        //     foreach ($sheetData as $lines) {
-
-        //         // Update progress percentage and send SSE update to client
-        //         $new_array = implode($lines);
-        //         $new_array = str_replace(' ', '', $new_array);
-        //         $uploadedBytes += strlen($new_array);
-        //         $progress = round(($uploadedBytes / $total_size) * 100);
-        //         echo "event: message\n";
-        //         echo 'data: {"progress": "' . $progress . '"}';
-
-        //         echo "\n\n";
-        //         ob_flush();
-        //         flush();
-        //         sleep(0.5);
-
-        //         $i++;
-        //     }
-        // $k++;
-        // }
-
-        SubirArchivosTemporales::where('id_tabla_ruta', $id_tabla_ruta)->delete();
-        // echo "event: message\n";
-        // echo 'data: {"message": "Upload completed successfully. Well done"}';
-        // echo "\n\n";
-        // ob_flush();
-        // flush();
-        // return response()->json(['archivos_subidos' => $archivos_subidos]);
-    }
 
     /**
      * Show the form for creating a new resource.
      *
      * @return Response
      */
-    public function processFileUploaded2(Request $request)
+    public function fileRegister(Request $request)
     {
+
 
         function clearSpecialCharacters($string)
         {
@@ -217,32 +67,33 @@ class FileController extends Controller
             return strtr(utf8_decode($str), utf8_decode('àáâãäçèéêëìíîïñòóôõöùúûüýÿÀÁÂÃÄÇÈÉÊËÌÍÎÏÑÒÓÔÕÖÙÚÛÜÝ'), 'aaaaaceeeeiiiinooooouuuuyyAAAAACEEEEIIIINOOOOOUUUUY');
         }
 
-        header("Content-Type: text/event-stream\n\n");
-        // Get a file from session
-        $id_tabla_ruta = $request->get('id_tabla_ruta');
-        //$total_files_size = $request->get('total_files_size');
-        $archivos_subidos = SubirArchivosTemporales::where('ID_TABLA_RUTA', $id_tabla_ruta)->where('EXISTE', false)->get();
-        // DELETE FILE FROM DATABASE AND UPLOADS
-        SubirArchivosTemporales::where('id_tabla_ruta', $id_tabla_ruta)->delete();
 
-        if ($archivos_subidos) {
-            $k = 0;
-            $uploadedBytes = 0;
-            $progress = 0;
-            $filepath = public_path('uploads/');
+        if ($request->files) {
             $mensajes = array();
+            $max_files = 1;
 
+            // if(count($request->files) > $max_files){
+            //     return $mensajes[] = ["mensaje" => "Solo puede subir un maximo de '". $max_files . "' archivos"];
+            // }
+            $k = 0;
             $files = $request->files;
-            $cod_operador_red = '8';
+            $cod_operador_red = '10';
             $consultas = array();
             $elementos = array();
             $valores = array();
+            // AFINIA Y AIRE electrohuila
+            // $mes_consolidado = 'Agosto';
+            // $ano_factura = '2022';
 
-            $mes_consolidado = 'Agosto';
-            $ano_factura = '2022';
             $id_usuario = 1;
+            // CENS
             // $mes_consolidado = 'Enero';
             // $ano_factura = '2023';
+
+            // OYM-RI
+            $mes_consolidado = 'Marzo';
+            $ano_factura = '2023';
+
             // TABLES OF QUERIES
             $table_catastro = "catastro_" . strtolower($mes_consolidado) . $ano_factura . "_2";
             $table_facturacion = "facturacion_" . strtolower($mes_consolidado) . $ano_factura . "_2";
@@ -250,29 +101,212 @@ class FileController extends Controller
             $table_refacturacion = "refacturacion_" . strtolower($mes_consolidado) . $ano_factura . "_2";
             $table_fact_reca_cens = "fact_reca_cens_" . strtolower($mes_consolidado) . "_" . $ano_factura . "_2";
 
-
-            $total_size = 0;
-            foreach ($archivos_subidos as $archivo) {
-                $file = $filepath . $archivo->NAME;
-                $reader = new \PhpOffice\PhpSpreadsheet\Reader\Xlsx();
-                $spreadsheet = $reader->load($file);
-                $sheet_base = $spreadsheet->getSheet(0);
-                $sheetData = $sheet_base->toArray();
-                foreach ($sheetData as $lines) {
-                    $new_array = implode($lines);
-                    $new_array = str_replace(' ', '', $new_array);
-                    $total_size += strlen($new_array);
-                }
-            }
-
             switch ($cod_operador_red) {
+                    // CASO OYM-RI
+                case '10':
+                    $operador_red = 'OYM-RI';
+                    foreach ($files as $archivo) {
+                        $reader = new \PhpOffice\PhpSpreadsheet\Reader\Xlsx();
+                        $filename = $archivo->getClientOriginalName();
+                        $tempFile = $archivo;
+                        $filepath = public_path('uploads/');
+                        $file = $filepath . $filename;
+                        $fecha_creacion = date('Y-m-d');
+                        $id_tipo_poblacion = 1;
+                        $mes_consolidado = 'Marzo';
+
+                        $query_ruta = ArchivosCargadosOYMRI::where('RUTA', $filename)->first();
+                        if($query_ruta){
+                            $mensajes[] = ["mensaje" => "El archivo ya existe", "file" => $file];
+                            continue;
+                        }
+
+                        move_uploaded_file($tempFile, $file);
+
+                        switch ($mes_consolidado) {
+                            case "Enero":
+                                $id_mes = 1;
+                                break;
+                            case "Febrero":
+                                $id_mes = 2;
+                                break;
+                            case "Marzo":
+                                $id_mes = 3;
+                                break;
+                            case "Abril":
+                                $id_mes = 4;
+                                break;
+                            case "Mayo":
+                                $id_mes = 5;
+                                break;
+                            case "Junio":
+                                $id_mes = 6;
+                                break;
+                            case "Julio":
+                                $id_mes = 7;
+                                break;
+                            case "Agosto":
+                                $id_mes = 8;
+                                break;
+                            case "Septiembre":
+                                $id_mes = 9;
+                                break;
+                            case "Octubre":
+                                $id_mes = 10;
+                                break;
+                            case "Noviembre":
+                                $id_mes = 11;
+                                break;
+                            case "Diciembre":
+                                $id_mes = 12;
+                                break;
+                        }
+
+
+                        // SAVE FILE
+                        $archivos_cargados_oymri = new ArchivosCargadosOYMRI();
+                        $archivos_cargados_oymri->ANO_FACTURA = $ano_factura;
+                        $archivos_cargados_oymri->PERIODO = $id_mes;
+                        $archivos_cargados_oymri->RUTA = $filename;
+                        $archivos_cargados_oymri->FECHA_CREACION = $fecha_creacion;
+                        $archivos_cargados_oymri->ID_USUARIO = $id_usuario;
+                        $archivos_cargados_oymri->save();
+
+                        $query_filename_oymri = ArchivosCargadosOYMRI::where('RUTA', $filename)->first();
+                        $id_tabla_ruta_oymri = $query_filename_oymri->ID_TABLA;
+                        $spreedsheet = $reader->load($file);
+                        $sheet_base = $spreedsheet->getSheet(0);
+                        $sheetData = $sheet_base->toArray();
+                        unset($sheetData[0]);
+
+                        $valor_bruto = 0;
+                        $valor_bruto_total = 0;
+                        $valor_subtotal_local = 0;
+                        $valor_subtotal_local_total = 0;
+                        $valor_impuesto_local = 0;
+                        $valor_impuesto_local_total = 0;
+                        $valor_neto_local = 0;
+                        $valor_neto_local_total = 0;
+                        $valor_desc_local = 0;
+                        $valor_desc_local_total = 0;
+                        $i = 0;
+                        foreach ($sheetData as $row) {
+                            $no_factura = trim($row[2]);
+                            $fecha_factura = trim($row[3]);
+                            $estado_factura = trim(strtoupper($row[7]));
+                            $nombre_cliente = trim($row[8]);
+                            $nombre_municipio = (trim(strtoupper($row[9])));
+                            $query_municipio = MunicipioVisita::where('NOMBRE', $nombre_municipio)->first();
+                            $id_municipio = $query_municipio->ID_MUNICIPIO;
+                            $id_departamento = $query_municipio->ID_DEPARTAMENTO;
+                            $valor_bruto = trim(str_replace(array('-', ','), '', $row[10]));
+                            if ($valor_bruto == '') $valor_bruto = 0;
+                            $valor_bruto_total = $valor_bruto_total + $valor_bruto;
+                            $valor_desc_local = trim(str_replace(array('-', ','), '', $row[11]));
+
+                            // ANOTHER CONDITIONAL
+                            if ($valor_desc_local == '') $valor_desc_local = 0;
+                            $valor_desc_local_total = $valor_desc_local_total + $valor_desc_local;
+                            $valor_subtotal_local = trim(str_replace(array('-', ','), '', $row[12]));
+                            if ($valor_subtotal_local == '') $valor_subtotal_local = 0;
+                            $valor_subtotal_local_total = $valor_subtotal_local_total + $valor_subtotal_local;
+                            $valor_impuesto_local =  trim(str_replace(array('-', ','), '', $row[13]));
+                            if ($valor_impuesto_local == '') $valor_impuesto_local = 0;
+                            //echo 'posicion: ' . $i;
+                            $valor_impuesto_local_total = $valor_impuesto_local_total + $valor_impuesto_local;
+                            $valor_neto_local = trim(str_replace(',', '', $row[14]));
+                            if ($valor_neto_local == '') $valor_neto_local = 0;
+                            $valor_neto_local_total = $valor_neto_local_total + $valor_neto_local;
+                            $concepto = trim($row[15]);
+                            $query_concepto = ConceptosFacturacion::where('NOMBRE', $concepto)->first();
+                            if ($query_concepto) {
+                                $id_concepto = $query_concepto->ID_CONCEPTO_FACT;
+                            } else {
+                                // INSERT
+                                $concepto_facturacion = new ConceptosFacturacion();
+                                $concepto_facturacion->NOMBRE = $concepto;
+                                $concepto_facturacion->save();
+                                $new_query_concepto = ConceptosFacturacion::where('NOMBRE', $concepto)->first();
+                                $id_concepto = $new_query_concepto->ID_CONCEPTO_FACT;
+                                $elementos[] = ['mensaje' => "Concepto facturación agregado en la posición '" . $i . "' ", 'elemento_agregado' =>  $concepto];
+                            }
+
+                            $periodo = trim($row[16]);
+                            $mes_factura = trim($row[17]);
+                            $ano_factura = trim($row[18]);
+
+                            $empresa = trim(strtoupper($row[19]));
+                            $query_empresa = Empresa::where('NOMBRE', $empresa)->first();
+                            $id_empresa = $query_empresa->ID_EMPRESA;
+                            $acta_mes = trim(strtoupper($row[20]));
+                            $observaciones = trim($row[21]);
+
+                            $observaciones == '' ? ' ' : $observaciones = $observaciones;
+
+                            $values = array(
+                                'NO_FACTURA' => $no_factura,
+                                'FECHA_FACTURA' => $fecha_factura,
+                                'ESTADO_FACTURA' => $estado_factura,
+                                'NOMBRE_CLIENTE' => $nombre_cliente,
+                                'ID_COD_DPTO' => $id_departamento,
+                                'ID_COD_MPIO' => $id_municipio,
+                                'VALOR_BRUTO' => $valor_bruto,
+                                'VALOR_DESC_LOCAL' => $valor_desc_local,
+                                'VALOR_SUBTOTAL_LOCAL' => $valor_subtotal_local,
+                                'VALOR_IMP_LOCAL' => $valor_impuesto_local,
+                                'VALOR_NETO_LOCAL' => $valor_neto_local,
+                                'ID_CONCEPTO' => $id_concepto,
+                                'PERIODO' => $periodo,
+                                'MES_FACTURA' => $mes_factura,
+                                'ANO_FACTURA' => $ano_factura,
+                                'ID_EMPRESA' => $id_empresa,
+                                'ACTA_MES' => $acta_mes,
+                                'OBSERVACIONES' => $observaciones,
+                                'ID_TABLA_RUTA' => $id_tabla_ruta_oymri,
+                                'FECHA_CREACION' => $fecha_creacion,
+                                'ID_USUARIO' => $id_usuario,
+                            );
+                            FacturacionOYMRI::insert($values);
+
+                            $i++;
+                        }
+                        // ENF FOREACH ROW
+
+                        // QUERIES
+                        $consultas[] = DB::table('facturacion_oymri_2021_2')->select([
+                            DB::raw('COUNT(*) AS TOTAL'),
+                            DB::raw('SUM(VALOR_BRUTO) AS TOTAL_VALOR_BRUTO'),
+                            DB::raw('SUM(VALOR_DESC_LOCAL) AS TOTAL_VALOR_DESC_LOCAL'),
+                            DB::raw('SUM(VALOR_SUBTOTAL_LOCAL) AS TOTAL_VALOR_SUBTOTAL_LOCAL'),
+                            DB::raw('SUM(VALOR_IMP_LOCAL) AS TOTAL_VALOR_IMP_LOCAL'),
+                            DB::raw('SUM(VALOR_NETO_LOCAL) AS TOTAL_VALOR_NETO_LOCAL')
+                        ])->where('ID_TABLA_RUTA', $id_tabla_ruta_oymri)->get();
+
+                        $mensajes[] = ['mensaje' => 'Archivo cargado con exito', 'file' => $file];
+                        $valores[] = [
+                            'total' => $i, 'valor_bruto_total' => $valor_bruto_total,
+                            'valor_desc_local_total' => $valor_desc_local_total, '
+                            valor_subtotal_local_total' => $valor_subtotal_local_total,
+                            'valor_impuesto_local_total' => $valor_impuesto_local_total,
+                            'valor_neto_local_total' => $valor_neto_local_total
+                        ];
+
+
+                        unlink($file);
+                    }
+                    // END FOREACH FILES
+                    return ["resultado" => $consultas, "mensajes" => $mensajes, "elementos" => $elementos, "valores" => $valores];
+                    break;
+
                     // CASO DE CENS
                 case '9':
                     $operador_red = 'CENS';
-                    foreach ($archivos_subidos as $archivo) {
+                    foreach ($files as $archivo) {
 
                         $reader = new \PhpOffice\PhpSpreadsheet\Reader\Xlsx();
-                        $filename = $archivo->NAME;
+                        $filename = $archivo->getClientOriginalName();
+                        $tempFile = $archivo;
+                        $filepath = public_path('uploads/');
                         $file = $filepath . $filename;
                         $fecha_creacion = date('Y-m-d');
                         $id_tipo_poblacion = 1;
@@ -289,6 +323,8 @@ class FileController extends Controller
 
                         // INSTANCES
                         $archivos_cargados_cens = new ArchivosCargadosCens();
+
+                        move_uploaded_file($tempFile, $file);
                         switch ($mes_consolidado) {
                             case "Enero":
                                 $id_mes = 1;
@@ -347,19 +383,18 @@ class FileController extends Controller
                         $sheet_base = $spreadsheet->getSheet(0);
                         $sheetData = $sheet_base->toArray();
                         // DELITE 6 FIRST ROWS
-                        // for ($e = 0; $e < 6; $e++) {
-                        //     unset($sheetData[$e]);
-                        // }
+                        for ($e = 0; $e < 6; $e++) {
+                            unset($sheetData[$e]);
+                        }
                         $i = 0;
                         $total_facturacion = 0;
                         $total_recaudo = 0;
                         $total_cartera = 0;
                         foreach ($sheetData as $row) {
-
                             $id_cliente = trim($row[0]);
                             $nombre_cliente = strtoupper(trim($row[1]));
                             $direccion_vivienda = strtoupper(trim($row[2]));
-                            $facturacion =  trim(str_replace(array('$', ','), '', $row[3]));
+                            $facturacion =  (trim(str_replace(array('$', ','), '', $row[3])));
                             $total_facturacion = $total_facturacion + $facturacion;
                             $recaudo =  (trim(str_replace(array('$', ','), '', $row[4])));
                             $total_recaudo = $total_recaudo + $recaudo;
@@ -388,25 +423,9 @@ class FileController extends Controller
                                 'ID_USUARIO' => $id_usuario,
                             );
                             DB::table($table_fact_reca_cens)->insert($values);
-
-                            // $uploadedBytes += strlen($row);
-                            //$uploadedBytes += sizeof($row);
-                            $new_array = implode($row);
-                            $new_array = str_replace(' ', '', $new_array);
-                            $uploadedBytes += strlen($new_array);
-                            echo 'new_array: ' . $new_array;
-                            $progress = round(($uploadedBytes / $total_size) * 100);
-                            echo "event: message\n";
-                            echo 'data: {"progress": "' . $progress . '"}';
-                            // echo 'data: {"uploadedBytes": "' . $uploadedBytes . '"}';
-                            // echo 'data: {"total_size": "' . $total_size . '"}';
-                            echo "\n\n";
-                            ob_flush();
-                            flush();
-
                             $i++;
                         }
-                        //FINAL FOREACH
+                        // FINAL FOREACH
                         $consultas[] = DB::table($table_fact_reca_cens)
                             ->select([
                                 DB::raw('COUNT(*) AS TOTAL'),
@@ -421,21 +440,16 @@ class FileController extends Controller
                         $k++;
                     }
                     // FIN FOREACH FILES
-                    $array =  ["resultado" => $consultas, "mensajes" => $mensajes, "elementos" => $elementos, "valores" => $valores];
-                    //return $array;
-                    echo "event: message\n";
-                    echo "data: " . json_encode($array) . "\n\n";
-                    ob_flush();
-                    flush();
-
+                    return ["resultado" => $consultas, "mensajes" => $mensajes, "elementos" => $elementos, "valores" => $valores];
                     // FIN CASO DE CENS
                     break;
                 case '8':
                     $operador_red = 'ELECTROHUILA';
-                    foreach ($archivos_subidos as $archivo) {
+                    foreach ($files as $archivo) {
                         $reader = new \PhpOffice\PhpSpreadsheet\Reader\Xlsx();
-                        $filename = $archivo->NAME;
+                        $filename = $archivo->getClientOriginalName();
                         $tempFile = $archivo;
+                        $filepath = public_path('uploads/');
                         $file = $filepath . $filename;
 
                         $fecha_creacion = date('Y-m-d');
@@ -449,16 +463,17 @@ class FileController extends Controller
 
 
 
-                        $query_ruta = ArchivosCargadosCatastro::where('RUTA', '=', $filename)->first();
+                        $query_ruta = DB::table('archivos_cargados_catastro_2')->where('RUTA', '=', $filename)->first();
                         if ($query_ruta) {
                             $mensajes[] = ["mensaje" => "El archivo ya existe", "file" => $file];
-                            continue;
+                            break;
                         }
                         //INSTANCES
                         $archivos_catastro = new ArchivosCargadosCatastro();
                         $archivos_facturacion = new ArchivosCargadosFacturacion();
                         $archivos_recaudo = new ArchivosCargadosRecaudo();
 
+                        move_uploaded_file($tempFile, $file);
                         switch ($mes_consolidado) {
                             case "Enero":
                                 $id_mes = 1;
@@ -544,13 +559,13 @@ class FileController extends Controller
                         $spreadsheet = $reader->load($file);
                         // $sheet_base = $spreadsheet->getSheetByName('BASE');
                         $sheet_base = $spreadsheet->getSheet(0);
+                        $number_rows = $sheet_base->getHighestDataRow();
                         $sheetData = $sheet_base->toArray();
                         //SE ELIMINA LA PRIMERA FILA
                         unset($sheetData[0]);
                         $i = 0;
                         $total_deuda_corriente = 0;
                         $total_deuda_cuota = 0;
-                        $deuda_cuota = 0;
                         $total_importe_trans_reca = 0;
                         $total_importe_trans_fact = 0;
                         $total_valor_recibo = 0;
@@ -586,7 +601,7 @@ class FileController extends Controller
 
                             // PREGUNTAR AQUÍ AL ING
                             $deuda_corriente = trim(str_replace(",", ".", $row[26]));
-
+                            $deuda_cuota = 0;
                             //$deuda_cuota = trim(str_replace(",", ".", $row[22]));
                             $id_estado_suministro = 0;
                             $total_deuda_corriente = $total_deuda_corriente + $deuda_corriente;
@@ -705,23 +720,6 @@ class FileController extends Controller
                             );
 
                             DB::table($table_recaudo)->insert($recaudo_values);
-
-                            // $uploadedBytes += strlen($row);
-                            //$uploadedBytes += sizeof($row);
-                            $new_array = implode($row);
-                            $new_array = str_replace(' ', '', $new_array);
-                            $uploadedBytes += strlen($new_array);
-                            echo 'new_array: ' . $new_array;
-                            $progress = round(($uploadedBytes / $total_size) * 100);
-                            echo "event: message\n";
-                            echo 'data: {"progress": "' . $progress . '"}';
-                            // echo 'data: {"uploadedBytes": "' . $uploadedBytes . '"}';
-                            // echo 'data: {"total_size": "' . $total_size . '"}';
-                            echo "\n\n";
-                            ob_flush();
-                            flush();
-
-
                             $i++;
                         }
                         // FINAL FOREACH SHEETDATA
@@ -757,12 +755,8 @@ class FileController extends Controller
                         $k++;
                     }
                     // FIN FOREACH FILES
-                    $array =  ["resultado" => $consultas, "mensajes" => $mensajes, "elementos" => $elementos, "valores" => $valores];
-                    //return $array;
-                    echo "event: message\n";
-                    echo "data: " . json_encode($array) . "\n\n";
-                    ob_flush();
-                    flush();
+                    return ["resultado" => $consultas, "mensajes" => $mensajes, "elementos" => $elementos, "valores" => $valores];
+                    break;
                 case '7':
                     $operador_red = 'AIR-E';
 
@@ -853,6 +847,8 @@ class FileController extends Controller
 
                                 unset($data[0]);
                                 foreach ($data as $lines) {
+
+
                                     $corregimiento = new Corregimiento();
                                     $suministro = new EstadoSuministro();
 
@@ -2462,30 +2458,12 @@ class FileController extends Controller
         }
     }
 
-    public function store(Request $request)
-    {
-        Validator::make($request->all(), [
-            'title' => ['required'],
-            'file' => ['required'],
-        ])->validate();
-
-        $fileName = time() . '.' . $request->file->extension();
-        $request->file->move(public_path('uploads'), $fileName);
-
-        File::create([
-            'title' => $request->title,
-            'name' => $fileName
-        ]);
-
-        return redirect()->route('file.upload');
-    }
-
     /**
      * Show the form for creating a new resource.
      *
      * @return Response
      */
-    public function store2(Request $request)
+    public function store(Request $request)
     {
 
         function stripAccent($str)

@@ -21,8 +21,8 @@ use Inertia\Inertia;
 */
 // FIles routes
 Route::get('file-upload', [FileController::class, 'index'])->name('file.upload');
-Route::post('file-upload', [FileController::class, 'store'])->name('file.upload.store');
-// Route::post('/file-upload', [FileController::class, 'fileRegister'])->name('file.register');
+//Route::post('file-upload', [FileController::class, 'store'])->name('file.upload.store');
+Route::post('/file-upload', [FileController::class, 'fileRegister'])->name('file.register');
 Route::get('file-progress-bar', [FileController::class, 'fileProgressBar'])->name('file.progress.bar');
 // Route::post('file-progress-bar', [FileController::class, 'fileUploadProgressBar'])->name('file.progress.bar.upload');
 Route::post('/upload-files', [FileController::class, 'uploadFiles'])->name('file.upload2');
