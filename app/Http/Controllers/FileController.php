@@ -120,7 +120,7 @@ class FileController extends Controller
         }
     }
 
-    public function processFileUploaded2(Request $request)
+    public function processFileUploaded(Request $request)
     {
         //date_default_timezone_set("America/New_York");
         header("Content-Type: text/event-stream\n\n");
@@ -203,7 +203,7 @@ class FileController extends Controller
      *
      * @return Response
      */
-    public function processFileUploaded(Request $request)
+    public function processFileUploaded2(Request $request)
     {
 
         function clearSpecialCharacters($string)
