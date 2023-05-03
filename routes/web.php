@@ -20,13 +20,17 @@ use Inertia\Inertia;
 |
 */
 // FIles routes
-Route::get('file-upload', [FileController::class, 'index'])->name('file.upload');
+Route::get('file-upload-liquidaciones', [FileController::class, 'index'])->name('file.uploadLiquidaciones');
 //Route::post('file-upload', [FileController::class, 'store'])->name('file.upload.store');
-Route::post('/file-upload', [FileController::class, 'fileRegister'])->name('file.register');
-Route::get('file-progress-bar', [FileController::class, 'fileProgressBar'])->name('file.progress.bar');
+Route::post('/file-upload-liquidaciones', [FileController::class, 'fileUploadLiquidaciones']);
+
+Route::get('file-upload-oyrmi', [FileController::class, 'uploadOYMRI'])->name('file.uploadOYMRI');
+Route::post('file-upload-oyrmi', [FileController::class, 'FileUploadOYMRI']);
+
 // Route::post('file-progress-bar', [FileController::class, 'fileUploadProgressBar'])->name('file.progress.bar.upload');
-Route::post('/upload-files', [FileController::class, 'uploadFiles'])->name('file.upload2');
-Route::get('/process-file-uploaded', [FileController::class, 'processFileUploaded'])->name('file.upload.get');
+Route::get('/file-upload-comercializadores', [FileController::class, 'uploadComercializadores'])->name('file.uploadComercializadores');
+Route::post('/file-upload-comercializadores', [FileController::class, 'FileUploadComercializadores']);
+
 
 
 

@@ -51,7 +51,7 @@ class FileController extends Controller
     public function index()
     {
         $files = File::latest()->get();
-        return Inertia::render('FileUpload', compact('files'));
+        return Inertia::render('FileUploadLiquidaciones', compact('files'));
     }
 
     /**
@@ -76,15 +76,13 @@ class FileController extends Controller
                     case '10':
                         $query_ruta = ArchivosCargadosOYMRI::where('RUTA', $filename)->first();
                         if ($query_ruta) {
-                            echo 'El archivos ya existe: '. $filename;
+                            echo 'El archivos ya existe: ' . $filename;
                             // in this case continue 2 works to continue with the next iteration
                             continue 2;
                         }
                         //echo 'El archivo no existe: '. $filename;
                         break;
                 }
-
-
                 move_uploaded_file($tempFile, $file);
 
                 $reader = new \PhpOffice\PhpSpreadsheet\Reader\Xlsx();
@@ -97,11 +95,455 @@ class FileController extends Controller
                     $total_size += strlen($new_array);
                 }
             }
-            echo 'Total files size: '. $total_size;
+            echo 'Total files size: ' . $total_size;
         }
     }
 
-    public function fileRegister(Request $request)
+    public function uploadOYMRI(Request $request)
+    {
+        return Inertia::render('FileUploadOYMRI');
+    }
+    public function FileUploadOYMRI(Request $request)
+    {
+        if ($request->files) {
+            $mensajes = array();
+            $files = $request->files;
+            $consultas = array();
+            $elementos = array();
+            $valores = array();
+            $id_usuario = 1;
+            foreach ($files as $archivo) {
+                $reader = new \PhpOffice\PhpSpreadsheet\Reader\Xlsx();
+                $filename = $archivo->getClientOriginalName();
+                $tempFile = $archivo;
+                $filepath = public_path('uploads/');
+                $file = $filepath . $filename;
+                $fecha_creacion = date('Y-m-d');
+                $mes_consolidado = 'Marzo';
+                $ano_factura = '2023';
+
+                if (file_exists($file)) {
+                    unlink($file);
+                }
+
+                $query_ruta = ArchivosCargadosOYMRI::where('RUTA', $filename)->first();
+                if ($query_ruta) {
+                    $mensajes[] = ["mensaje" => "El archivo ya existe", "file" => $file];
+                    continue;
+                }
+                move_uploaded_file($tempFile, $file);
+
+                switch ($mes_consolidado) {
+                    case "Enero":
+                        $id_mes = 1;
+                        break;
+                    case "Febrero":
+                        $id_mes = 2;
+                        break;
+                    case "Marzo":
+                        $id_mes = 3;
+                        break;
+                    case "Abril":
+                        $id_mes = 4;
+                        break;
+                    case "Mayo":
+                        $id_mes = 5;
+                        break;
+                    case "Junio":
+                        $id_mes = 6;
+                        break;
+                    case "Julio":
+                        $id_mes = 7;
+                        break;
+                    case "Agosto":
+                        $id_mes = 8;
+                        break;
+                    case "Septiembre":
+                        $id_mes = 9;
+                        break;
+                    case "Octubre":
+                        $id_mes = 10;
+                        break;
+                    case "Noviembre":
+                        $id_mes = 11;
+                        break;
+                    case "Diciembre":
+                        $id_mes = 12;
+                        break;
+                }
+
+
+                // SAVE FILE
+                $archivos_cargados_oymri = new ArchivosCargadosOYMRI();
+                $archivos_cargados_oymri->ANO_FACTURA = $ano_factura;
+                $archivos_cargados_oymri->PERIODO = $id_mes;
+                $archivos_cargados_oymri->RUTA = $filename;
+                $archivos_cargados_oymri->FECHA_CREACION = $fecha_creacion;
+                $archivos_cargados_oymri->ID_USUARIO = $id_usuario;
+                $archivos_cargados_oymri->save();
+
+                $query_filename_oymri = ArchivosCargadosOYMRI::where('RUTA', $filename)->first();
+                $id_tabla_ruta_oymri = $query_filename_oymri->ID_TABLA;
+                $spreedsheet = $reader->load($file);
+                $sheet_base = $spreedsheet->getSheet(0);
+                $sheetData = $sheet_base->toArray();
+                unset($sheetData[0]);
+
+                $valor_bruto = 0;
+                $valor_bruto_total = 0;
+                $valor_subtotal_local = 0;
+                $valor_subtotal_local_total = 0;
+                $valor_impuesto_local = 0;
+                $valor_impuesto_local_total = 0;
+                $valor_neto_local = 0;
+                $valor_neto_local_total = 0;
+                $valor_desc_local = 0;
+                $valor_desc_local_total = 0;
+                $i = 0;
+                foreach ($sheetData as $row) {
+                    $no_factura = trim($row[2]);
+                    $fecha_factura = trim($row[3]);
+                    $estado_factura = trim(strtoupper($row[7]));
+                    $nombre_cliente = trim($row[8]);
+                    $nombre_municipio = (trim(strtoupper($row[9])));
+                    $query_municipio = MunicipioVisita::where('NOMBRE', $nombre_municipio)->first();
+                    $id_municipio = $query_municipio->ID_MUNICIPIO;
+                    $id_departamento = $query_municipio->ID_DEPARTAMENTO;
+                    $valor_bruto = trim(str_replace(array('-', ','), '', $row[10]));
+                    if ($valor_bruto == '') $valor_bruto = 0;
+                    $valor_bruto_total = $valor_bruto_total + $valor_bruto;
+                    $valor_desc_local = trim(str_replace(array('-', ','), '', $row[11]));
+
+                    // ANOTHER CONDITIONAL
+                    if ($valor_desc_local == '') $valor_desc_local = 0;
+                    $valor_desc_local_total = $valor_desc_local_total + $valor_desc_local;
+                    $valor_subtotal_local = trim(str_replace(array('-', ','), '', $row[12]));
+                    if ($valor_subtotal_local == '') $valor_subtotal_local = 0;
+                    $valor_subtotal_local_total = $valor_subtotal_local_total + $valor_subtotal_local;
+                    $valor_impuesto_local =  trim(str_replace(array('-', ','), '', $row[13]));
+                    if ($valor_impuesto_local == '') $valor_impuesto_local = 0;
+                    //echo 'posicion: ' . $i;
+                    $valor_impuesto_local_total = $valor_impuesto_local_total + $valor_impuesto_local;
+                    $valor_neto_local = trim(str_replace(',', '', $row[14]));
+                    if ($valor_neto_local == '') $valor_neto_local = 0;
+                    $valor_neto_local_total = $valor_neto_local_total + $valor_neto_local;
+                    $concepto = trim($row[15]);
+                    $query_concepto = ConceptosFacturacion::where('NOMBRE', $concepto)->first();
+                    if ($query_concepto) {
+                        $id_concepto = $query_concepto->ID_CONCEPTO_FACT;
+                    } else {
+                        // INSERT
+                        $concepto_facturacion = new ConceptosFacturacion();
+                        $concepto_facturacion->NOMBRE = $concepto;
+                        $concepto_facturacion->save();
+                        $new_query_concepto = ConceptosFacturacion::where('NOMBRE', $concepto)->first();
+                        $id_concepto = $new_query_concepto->ID_CONCEPTO_FACT;
+                        $elementos[] = ['mensaje' => "Concepto facturación agregado en la posición '" . $i . "' ", 'elemento_agregado' =>  $concepto];
+                    }
+
+                    $periodo = trim($row[16]);
+                    $mes_factura = trim($row[17]);
+                    $ano_factura = trim($row[18]);
+
+                    $empresa = trim(strtoupper($row[19]));
+                    $query_empresa = Empresa::where('NOMBRE', $empresa)->first();
+                    $id_empresa = $query_empresa->ID_EMPRESA;
+                    $acta_mes = trim(strtoupper($row[20]));
+                    $observaciones = trim($row[21]);
+
+                    $observaciones == '' ? ' ' : $observaciones = $observaciones;
+
+                    $values = array(
+                        'NO_FACTURA' => $no_factura,
+                        'FECHA_FACTURA' => $fecha_factura,
+                        'ESTADO_FACTURA' => $estado_factura,
+                        'NOMBRE_CLIENTE' => $nombre_cliente,
+                        'ID_COD_DPTO' => $id_departamento,
+                        'ID_COD_MPIO' => $id_municipio,
+                        'VALOR_BRUTO' => $valor_bruto,
+                        'VALOR_DESC_LOCAL' => $valor_desc_local,
+                        'VALOR_SUBTOTAL_LOCAL' => $valor_subtotal_local,
+                        'VALOR_IMP_LOCAL' => $valor_impuesto_local,
+                        'VALOR_NETO_LOCAL' => $valor_neto_local,
+                        'ID_CONCEPTO' => $id_concepto,
+                        'PERIODO' => $periodo,
+                        'MES_FACTURA' => $mes_factura,
+                        'ANO_FACTURA' => $ano_factura,
+                        'ID_EMPRESA' => $id_empresa,
+                        'ACTA_MES' => $acta_mes,
+                        'OBSERVACIONES' => $observaciones,
+                        'ID_TABLA_RUTA' => $id_tabla_ruta_oymri,
+                        'FECHA_CREACION' => $fecha_creacion,
+                        'ID_USUARIO' => $id_usuario,
+                    );
+                    FacturacionOYMRI::insert($values);
+
+                    $i++;
+                }
+                // ENF FOREACH ROW
+
+                // QUERIES
+                $consultas[] = DB::table('facturacion_oymri_2021_2')->select([
+                    DB::raw('COUNT(*) AS TOTAL'),
+                    DB::raw('SUM(VALOR_BRUTO) AS TOTAL_VALOR_BRUTO'),
+                    DB::raw('SUM(VALOR_DESC_LOCAL) AS TOTAL_VALOR_DESC_LOCAL'),
+                    DB::raw('SUM(VALOR_SUBTOTAL_LOCAL) AS TOTAL_VALOR_SUBTOTAL_LOCAL'),
+                    DB::raw('SUM(VALOR_IMP_LOCAL) AS TOTAL_VALOR_IMP_LOCAL'),
+                    DB::raw('SUM(VALOR_NETO_LOCAL) AS TOTAL_VALOR_NETO_LOCAL')
+                ])->where('ID_TABLA_RUTA', $id_tabla_ruta_oymri)->get();
+
+                $mensajes[] = ['mensaje' => 'Archivo cargado con exito', 'file' => $file];
+                $valores[] = [
+                    'total' => $i, 'valor_bruto_total' => $valor_bruto_total,
+                    'valor_desc_local_total' => $valor_desc_local_total, '
+                            valor_subtotal_local_total' => $valor_subtotal_local_total,
+                    'valor_impuesto_local_total' => $valor_impuesto_local_total,
+                    'valor_neto_local_total' => $valor_neto_local_total
+                ];
+
+                unlink($file);
+            }
+            // END FOREACH FILES
+            return ["resultado" => $consultas, "mensajes" => $mensajes, "elementos" => $elementos, "valores" => $valores];
+        }
+    }
+
+    public function uploadComercializadores(Request $request)
+    {
+        return Inertia::render('FileUploadComercializadores');
+    }
+    public function FileUploadComercializadores(Request $request)
+    {
+
+        function clearSpecialCharacters($string)
+        {
+            return str_replace('?', 'Ñ', utf8_decode(strtoupper(trim(str_replace(array("”", "#", ".", "'", ";", "/", "\\", "`", '"', "'"), "", stripAccents($string))))));
+        }
+
+
+        function stripAccents($str)
+        {
+            return strtr(utf8_decode($str), utf8_decode('àáâãäçèéêëìíîïñòóôõöùúûüýÿÀÁÂÃÄÇÈÉÊËÌÍÎÏÑÒÓÔÕÖÙÚÛÜÝ'), 'aaaaaceeeeiiiinooooouuuuyyAAAAACEEEEIIIINOOOOOUUUUY');
+        }
+
+        if ($request->files) {
+            $mensajes = array();
+            $files = $request->files;
+            $consultas = array();
+            $elementos = array();
+            $valores = array();
+
+            $id_usuario = 1;
+
+            foreach ($files as $archivo) {
+                $reader = new \PhpOffice\PhpSpreadsheet\Reader\Xlsx();
+                $filename = $archivo->getClientOriginalName();
+                $tempFile = $archivo;
+                $filepath = public_path('uploads/');
+                $file = $filepath . $filename;
+                $fecha_creacion = date('Y-m-d');
+                if (file_exists($file)) {
+                    unlink($file);
+                }
+                move_uploaded_file($tempFile, $file);
+
+
+                $spreedsheet = $reader->load($file);
+                $sheet_base = $spreedsheet->getSheet(0);
+                $sheetData = $sheet_base->toArray();
+                unset($sheetData[0]);
+                // $nombre_comercializadora = 'VATIA S.A. E.S.P.';
+                $nombre_comercializadora = 'VATIA S.A. E.S.P.';
+                $query_comercializador = Comercializador::where('NOMBRE', $nombre_comercializadora)->first();
+                $id_comercializador = $query_comercializador->ID_COMERCIALIZADOR;
+
+                $archivos_cargados_fac_comer = new ArchivosCargadosFactComer();
+                $archivos_cargados_fac_comer->ID_COMERCIALIZADOR = $id_comercializador;
+                $archivos_cargados_fac_comer->RUTA = $filename;
+                $archivos_cargados_fac_comer->FECHA_CREACION = $fecha_creacion;
+                $archivos_cargados_fac_comer->ID_USUARIO = $id_usuario;
+                $archivos_cargados_fac_comer->save();
+
+                // GET LAST ID
+                $id_tabla_ruta_fact_comer = ArchivosCargadosFactComer::max('ID_TABLA');
+
+                $estado_factura = 2;
+                $i = 0;
+                foreach ($sheetData as $row) {
+                    // ASIGNACION DE VARIABLES;
+                    $periodo = trim($row[0]);
+                    $municipio = trim(strtoupper($row[10]));
+
+                    $query_municipio = MunicipioVisita::where("NOMBRE", $municipio)->first();
+
+                    $id_municipio = $query_municipio->ID_MUNICIPIO;
+                    $id_departamento = $query_municipio->ID_DEPARTAMENTO;
+                    //echo 'periodo: '. $periodo .' id_departamento: '. $id_departamento . ' id_municipio: '. $id_municipio . '<br>';
+
+                    // VERIFY IF INFO ALREADY EXISTE IN DATABASE
+                    $query_verify_info = DetalleFactComer::where('PERIODO', $periodo)
+                        ->where('ID_COD_DPTO', $id_departamento)->where('ID_COD_MPIO', $id_municipio)
+                        ->where('ID_COMERCIALIZADOR', $id_comercializador)->where('ID_TABLA_RUTA', '<>', $id_tabla_ruta_fact_comer)->first();
+                    if ($query_verify_info) {
+                        $mensajes[] = ["mensaje" => "El periodo '" . $periodo . "' ya existe para el municipio: '" . $municipio . "'..", "file" => $file];
+                        continue;
+                    }
+
+                    $factura = trim($row[1]);
+                    $cliente_id = trim($row[2]);
+                    $factura_tipo_id = trim($row[3]);
+                    $nombre_cliente = clearSpecialCharacters($row[4]);
+                    $direccion_cliente = clearSpecialCharacters($row[5]);
+                    $nombre_mercado = trim(strtoupper($row[6]));
+                    $query_tipo_mercado = TipoMercado::where('NOMBRE', $nombre_mercado)->first();
+                    if (empty($query_tipo_mercado)) {
+                        $tipo_mercado = new TipoMercado();
+                        $tipo_mercado->NOMBRE = $nombre_mercado;
+                        $tipo_mercado->save();
+                        $query_new_tipo_mercado = TipoMercado::where('NOMBRE', $nombre_mercado)->first();
+                        $id_tipo_mercado = $query_new_tipo_mercado->ID_TIPO_MERCADO;
+                        $elementos[] = ['mensaje' => "Tipo mercado agregado en la posición '" . $i . "' ", 'elemento_agregado' =>  $nombre_mercado];
+                    } else {
+                        $id_tipo_mercado = $query_tipo_mercado->ID_TIPO_MERCADO;
+                    }
+
+                    $nombre_sub_mercado = trim($row[7]);
+                    $query_tipo_sub_mercado = TipoSubMercado::where('NOMBRE', $nombre_sub_mercado)->first();
+                    if (empty($query_tipo_sub_mercado)) {
+                        $sub_mercado = new TipoSubMercado();
+                        $sub_mercado->NOMBRE = $nombre_sub_mercado;
+                        $sub_mercado->save();
+                        $query_new_tipo_sub_mercado = TipoSubMercado::where('NOMBRE', $nombre_sub_mercado)->first();
+                        $id_tipo_sub_mercado = $query_new_tipo_sub_mercado->ID_TIPO_SUB_MERCADO;
+                        $elementos[] = ['mensaje' => "Tipo submercado agregado en la posición '" . $i . "' ", 'elemento_agregado' =>  $nombre_sub_mercado];
+                    } else {
+                        $id_tipo_sub_mercado = $query_tipo_sub_mercado->ID_TIPO_SUB_MERCADO;
+                    }
+
+                    $estrato = trim($row[8]);
+                    $estrato == '' ? $estrato = 0 : $estrato = $estrato;
+
+                    $fecha_elaboracion_fact = trim($row[11]);
+                    $fecha_limite1 = trim($row[12]);
+                    $fecha_limite2 = trim($row[13]);
+                    $valor_total_fact = trim($row[16]);
+                    $valor_fact_conc = trim($row[17]);
+                    $fecha_pago = trim($row[18]);
+                    $valor_pago_total = trim($row[19]);
+                    $valor_pago_conc = trim($row[20]);
+                    $consumo = trim($row[21]);
+                    $csm_rea_cobrable = trim($row[22]);
+                    $csm_sin_con_valor = trim($row[23]);
+                    $tipo_nota = trim($row[24]);
+                    $valor_nota = trim($row[25]);
+                    $fact_total_conc = trim($row[26]);
+                    $nombre_tipo_pago = trim($row[27]);
+                    $query_tipo_pago = TipoPago::where('NOMBRE', $nombre_tipo_pago)->first();
+                    if (empty($query_tipo_pago)) {
+                        $tipo_pago = new TipoPago();
+                        $tipo_pago->NOMBRE = $nombre_tipo_pago;
+                        $tipo_pago->save();
+                        $query_new_tipo_pago = TipoPago::where('NOMBRE', $nombre_tipo_pago)->first();
+                        $id_tipo_pago = $query_new_tipo_pago->ID_TIPO_PAGO;
+                        $elementos[] = ['mensaje' => "Tipo pago agregado en la posición '" . $i . "' ", 'elemento_agregado' =>  $nombre_tipo_pago];
+                    } else {
+                        $id_tipo_pago = $query_tipo_pago->ID_TIPO_PAGO;
+                    }
+                    $cartera_recuperada = trim($row[28]);
+                    $saldo_cartera = trim($row[29]);
+                    $edad_cierre_mes_ciclo = trim($row[30]);
+                    $query_tipo_edad = TipoEdad::where('NOMBRE', $edad_cierre_mes_ciclo)->first();
+                    if (empty($query_tipo_edad)) {
+                        $tipo_edad = new TipoEdad();
+                        $tipo_edad->NOMBRE = $edad_cierre_mes_ciclo;
+                        $tipo_edad->save();
+                        $query_new_tipo_edad = TipoEdad::where('NOMBRE', $edad_cierre_mes_ciclo)->first();
+                        $id_tipo_edad = $query_new_tipo_edad->ID_TIPO_EDAD;
+                        $elementos[] = ['mensaje' => "Tipo edad agregado en la posición '" . $i . "' ", 'elemento_agregado' =>  $edad_cierre_mes_ciclo];
+                    } else {
+                        $id_tipo_edad = $query_tipo_edad->ID_TIPO_EDAD;
+                    }
+
+                    $facturado_cartera = trim($row[31]);
+
+                    // AQUI SE PONE EL 02 QUEMADO COMO DIA DE FACTURADO
+                    $fecha_factura = substr($periodo, 0, 4) . '-' . substr($periodo, 4, 2) . '-' . '02';
+
+                    // $values = array(
+                    //     'PERIODO' => $periodo, 'FACTURA' => $factura, 'CLIENTE_ID' => $cliente_id,
+                    //     'FACTURA_TIPO_ID' => $factura_tipo_id, 'NOMBRE_CLIENTE' => $nombre_cliente,
+                    //     'DIRECCION_CLIENTE' => $direccion_cliente, 'ID_TIPO_MERCADO' => $id_tipo_mercado,
+                    //     'ID_TIPO_SUB_MERCADO' => $id_tipo_sub_mercado, 'ESTRATO' => $estrato,
+                    //     'ID_COD_DPTO' => $id_departamento, 'ID_COD_MPIO' => $id_municipio,
+                    //     'FECHA_ELAB_FACT' => $fecha_elaboracion_fact, 'FECHA_LIMITE1' => $fecha_limite1,
+                    //     'FECHA_LIMITE2' => $fecha_limite2, 'VALOR_TOT_FACT' => $valor_total_fact,
+                    //     'VALOR_FACT_CONC' => $valor_fact_conc, 'FECHA_PAGO' => $fecha_pago,
+                    //     'VALOR_PAGO_TOT' => $valor_pago_total, 'VALOR_PAGO_CONC' => $valor_pago_conc,
+                    //     'CONSUMO' => $consumo, 'CSM_REA_COBRABLE' => $csm_rea_cobrable,
+                    //     'CSM_SIN_CON_VALOR' => $csm_sin_con_valor, 'TIPO_NOTA' => $tipo_nota,
+                    //     'VALOR_NOTA' => $valor_nota, 'FACT_TOTAL_CONC' => $fact_total_conc,
+                    //     'ID_TIPO_PAGO' => $id_tipo_pago, 'CARTERA_RECUP' => $cartera_recuperada,
+                    //     'SALDO_CARTERA' => $saldo_cartera, 'ID_TIPO_EDAD' => $id_tipo_edad,
+                    //     'FACT_CARTERA' => $facturado_cartera, 'ID_COMERCIALIZADOR' => $id_comercializador,
+                    //     'FECHA_FACTURA' => $fecha_factura, 'ESTADO_FACTURA' => $estado_factura,
+                    //     'ID_TABLA_RUTA' => $id_tabla_ruta_fact_comer, 'FECHA_CREACION' => $fecha_creacion,
+                    //     'ID_USUARIO' => $id_usuario
+                    // );
+                    // DB::table('detalle_fact_comer_2021_2')->insert($values);
+                    $i++;
+                } // FINAL FOREACH ROWS
+                // QUERIES
+                $consultas[] = DB::table('detalle_fact_comer_2021_2')
+                    ->select([
+                        DB::raw('COUNT(*) AS TOTAL'),
+                    ])->where('ID_TABLA_RUTA', $id_tabla_ruta_fact_comer)->get();
+                $mensajes[] = ['mensaje' => 'Archivo cargado con exito', 'file' => $file];
+                $valores[] = [
+                    'total' => $i,
+                ];
+                unlink($file);
+
+                $periodos = DB::table('detalle_fact_comer_2021_2')
+                ->selectRaw('PERIODO')->where('ID_TABLA_RUTA', $id_tabla_ruta_fact_comer)->groupBy('PERIODO')->get();
+
+            //     $resultados_periodos = DB::table('detalle_fact_comer_2021_2 as DFC')
+            // ->join('departamentos_visitas_2 as DV', 'DFC.ID_COD_DPTO', '=', 'DV.ID_DEPARTAMENTO')
+            // ->join('municipios_visitas_2 as MV', 'DFC.ID_COD_MPIO', '=', 'MV.ID_MUNICIPIO')
+            // ->selectRaw('DISTINCT DFC.ID_COD_MPIO, MV.NOMBRE, DFC.ID_COD_DPTO, DV.NOMBRE,
+            //             DFC.ID_COMERCIALIZADOR, DFC.ESTADO_FACTURA, DFC.PERIODO, DFC.FECHA_FACTURA,
+            //             DFC.FECHA_CREACION, SUM(DFC.VALOR_FACT_CONC) AS VALOR_FACT, SUM(DFC.VALOR_NOTA) AS AJUSTE_FACT,
+            //             SUM(DFC.VALOR_PAGO_CONC) AS VALOR_RECA, SUM(DFC.CSM_SIN_CON_VALOR) AS VALOR_ENER,
+            //             SUM(DFC.VALOR_PAGO_CONC + DFC.CARTERA_RECUP) AS VALOR_FAV, SUM(DFC.CONSUMO) AS CONSUMO,
+            //             COUNT(DFC.ID_COD_MPIO) AS NO_USUARIOS')
+            // ->where('DFC.ID_TABLA_RUTA', '=', $id_tabla_ruta_fact_comer)
+            // ->where('DFC.PERIODO', '=', 202212)
+            // ->groupBy('DFC.ID_COD_MPIO', 'DFC.ID_COMERCIALIZADOR')->get();
+            // ->having(DB::raw('COUNT(DFC.ID_COD_MPIO)'), '>=', 1)
+
+
+                $resultados_periodos = DB::table('detalle_fact_comer_2021_2')
+                ->select(DB::raw('DISTINCT detalle_fact_comer_2021_2.ID_COD_MPIO, municipios_visitas_2.NOMBRE, detalle_fact_comer_2021_2.ID_COD_DPTO, departamentos_visitas_2.NOMBRE, detalle_fact_comer_2021_2.ID_COMERCIALIZADOR, detalle_fact_comer_2021_2.ESTADO_FACTURA, detalle_fact_comer_2021_2.PERIODO, detalle_fact_comer_2021_2.FECHA_FACTURA, detalle_fact_comer_2021_2.FECHA_CREACION, SUM(detalle_fact_comer_2021_2.VALOR_FACT_CONC) AS VALOR_FACT, SUM(detalle_fact_comer_2021_2.VALOR_NOTA) AS AJUSTE_FACT, SUM(detalle_fact_comer_2021_2.VALOR_PAGO_CONC) AS VALOR_RECA, SUM(detalle_fact_comer_2021_2.CSM_SIN_CON_VALOR) AS VALOR_ENER, SUM(detalle_fact_comer_2021_2.VALOR_PAGO_CONC + detalle_fact_comer_2021_2.CARTERA_RECUP) AS VALOR_FAV, SUM(detalle_fact_comer_2021_2.CONSUMO) AS CONSUMO, COUNT(detalle_fact_comer_2021_2.ID_COD_MPIO) AS NO_USUARIOS'))
+                ->join('departamentos_visitas_2', 'detalle_fact_comer_2021_2.ID_COD_DPTO', '=', 'departamentos_visitas_2.ID_DEPARTAMENTO')
+                ->join('municipios_visitas_2', function ($join) {
+                $join->on('detalle_fact_comer_2021_2.ID_COD_MPIO', '=', 'municipios_visitas_2.ID_MUNICIPIO')
+                ->on('departamentos_visitas_2.ID_DEPARTAMENTO', '=', 'municipios_visitas_2.ID_DEPARTAMENTO');
+                })
+                ->where('detalle_fact_comer_2021_2.ID_TABLA_RUTA', '=', 47)
+                ->where('detalle_fact_comer_2021_2.PERIODO', '=', 202301)
+                ->groupBy('detalle_fact_comer_2021_2.ID_COD_MPIO', 'detalle_fact_comer_2021_2.ID_COMERCIALIZADOR')
+                ->having(DB::raw('COUNT(detalle_fact_comer_2021_2.ID_COD_MPIO)'), '>=', 1)
+                //->pluck('detalle_fact_comer_2021_2.ID_COD_MPIO', 'detalle_fact_comer_2021_2.ID_COMERCIALIZADOR')
+                ->get();
+
+                var_dump($resultados_periodos);
+            } // FINAL FOREACH FILES
+
+
+            //return ["resultado" => $consultas, "mensajes" => $mensajes, "elementos" => $elementos, "valores" => $valores];
+        }
+    }
+
+    public function fileUploadLiquidaciones(Request $request)
     {
 
 
@@ -115,7 +557,8 @@ class FileController extends Controller
         {
             return strtr(utf8_decode($str), utf8_decode('àáâãäçèéêëìíîïñòóôõöùúûüýÿÀÁÂÃÄÇÈÉÊËÌÍÎÏÑÒÓÔÕÖÙÚÛÜÝ'), 'aaaaaceeeeiiiinooooouuuuyyAAAAACEEEEIIIINOOOOOUUUUY');
         }
-        function getFilesSize($files, $cod_operador_red){
+        function getFilesSize($files, $cod_operador_red)
+        {
             $total_size = 0;
             foreach ($files as $archivo) {
                 $filename = $archivo->getClientOriginalName();
@@ -171,16 +614,10 @@ class FileController extends Controller
 
             $id_usuario = 1;
             // CENS
-            // $mes_consolidado = 'Enero';
-            // $ano_factura = '2023';
-
-            // OYM-RI
-            // $mes_consolidado = 'Marzo';
-            // $ano_factura = '2023';
-
-            // Comercializadores
-            $mes_consolidado = 'Febrero';
+            $mes_consolidado = 'Enero';
             $ano_factura = '2023';
+
+
 
             // TABLES OF QUERIES
             $table_catastro = "catastro_" . strtolower($mes_consolidado) . $ano_factura . "_2";
@@ -190,381 +627,8 @@ class FileController extends Controller
             $table_fact_reca_cens = "fact_reca_cens_" . strtolower($mes_consolidado) . "_" . $ano_factura . "_2";
 
             switch ($cod_operador_red) {
-                // CASO COMERCIALIZADORES
-                case '11':
-
-                    $operador_red = 'COMERCIALIZADORES';
-                    foreach($files as $archivo){
-                        $reader = new \PhpOffice\PhpSpreadsheet\Reader\Xlsx();
-                        $filename = $archivo->getClientOriginalName();
-                        $tempFile = $archivo;
-                        $filepath = public_path('uploads/');
-                        $file = $filepath . $filename;
-                        $fecha_creacion = date('Y-m-d');
-                        $id_tipo_poblacion = 1;
-                        if(file_exists($file)){
-                            unlink($file);
-                        }
-                        move_uploaded_file($tempFile, $file);
-
-
-
-
-                        $spreedsheet = $reader->load($file);
-                        $sheet_base = $spreedsheet->getSheet(0);
-                        $sheetData = $sheet_base->toArray();
-                        unset($sheetData[0]);
-                        // $nombre_comercializadora = 'VATIA S.A. E.S.P.';
-                        $nombre_comercializadora = 'VATIA S.A. E.S.P.';
-                        $query_comercializador = Comercializador::where('NOMBRE', $nombre_comercializadora)->first();
-                        $id_comercializador = $query_comercializador->ID_COMERCIALIZADOR;
-
-                        $archivos_cargados_fac_comer = new ArchivosCargadosFactComer();
-                        $archivos_cargados_fac_comer->ID_COMERCIALIZADOR = $id_comercializador;
-                        $archivos_cargados_fac_comer->RUTA = $filename;
-                        $archivos_cargados_fac_comer->FECHA_CREACION = $fecha_creacion;
-                        $archivos_cargados_fac_comer->ID_USUARIO = $id_usuario;
-                        $archivos_cargados_fac_comer->save();
-
-                        // GET LAST ID
-                        $id_tabla_ruta_fact_comer = ArchivosCargadosFactComer::max('ID_TABLA');
-
-                        $estado_factura = 2;
-                        $i = 0;
-                        foreach($sheetData as $row){
-                            // ASIGNACION DE VARIABLES;
-                            $periodo = trim($row[0]);
-                            $municipio = trim(strtoupper($row[10]));
-                            $query_municipio = Municipio::where('NOMBRE', $municipio)->first();
-                            $id_municipio = $query_municipio->ID_MUNICIPIO;
-                            $id_departamento = $query_municipio->ID_DEPARTAMENTO;
-                            //echo 'periodo: '. $periodo .' id_departamento: '. $id_departamento . ' id_municipio: '. $id_municipio . '<br>';
-
-                            // VERIFY IF INFO ALREADY EXISTE IN DATABASE
-                            $query_verify_info = DetalleFactComer::where('PERIODO', $periodo)
-                            ->where('ID_COD_DPTO', $id_departamento)->where('ID_COD_MPIO', $id_municipio)
-                            ->where('ID_COMERCIALIZADOR', $id_comercializador)->first();
-                            if($query_verify_info){
-                                $mensajes[] = ["mensaje" => "El periodo '". $periodo ."' ya existe para el municipio: '". $municipio."'..", "file" => $file];
-                                continue;
-                            }
-
-                            $factura = trim($row[1]);
-                            $cliente_id = trim($row[2]);
-                            $factura_tipo_id = trim($row[3]);
-                            $nombre_cliente = clearSpecialCharacters($row[4]);
-                            $direccion_cliente = clearSpecialCharacters($row[5]);
-                            $nombre_mercado = trim(strtoupper($row[6]));
-                            $query_tipo_mercado = TipoMercado::where('NOMBRE', $nombre_mercado)->first();
-                            if(empty($query_tipo_mercado)){
-                                $tipo_mercado = new TipoMercado();
-                                $tipo_mercado->NOMBRE = $nombre_mercado;
-                                $tipo_mercado->save();
-                                $query_new_tipo_mercado = TipoMercado::where('NOMBRE', $nombre_mercado)->first();
-                                $id_tipo_mercado = $query_new_tipo_mercado->ID_TIPO_MERCADO;
-                                $elementos[] = ['mensaje' => "Tipo mercado agregado en la posición '" . $i . "' ", 'elemento_agregado' =>  $nombre_mercado];
-                            }else{
-                                $id_tipo_mercado = $query_tipo_mercado->ID_TIPO_MERCADO;
-                            }
-
-                            $nombre_sub_mercado = trim($row[7]);
-                            $query_tipo_sub_mercado = TipoSubMercado::where('NOMBRE', $nombre_sub_mercado)->first();
-                            if(empty($query_tipo_sub_mercado)){
-                                $sub_mercado = new TipoSubMercado();
-                                $sub_mercado->NOMBRE = $nombre_sub_mercado;
-                                $sub_mercado->save();
-                                $query_new_tipo_sub_mercado = TipoSubMercado::where('NOMBRE', $nombre_sub_mercado)->first();
-                                $id_tipo_sub_mercado = $query_new_tipo_sub_mercado->ID_TIPO_SUB_MERCADO;
-                                $elementos[] = ['mensaje' => "Tipo submercado agregado en la posición '" . $i . "' ", 'elemento_agregado' =>  $nombre_sub_mercado];
-                            }else{
-                                $id_tipo_sub_mercado = $query_tipo_sub_mercado->ID_TIPO_SUB_MERCADO;
-                            }
-
-                            $estrato = trim($row[8]);
-                            $estrato == '' ? $estrato = 0 : $estrato = $estrato;
-
-                            $fecha_elaboracion_fact = trim($row[11]);
-                            $fecha_limite1 = trim($row[12]);
-                            $fecha_limite2 = trim($row[13]);
-                            $valor_total_fact = trim($row[16]);
-                            $valor_fact_conc = trim($row[17]);
-                            $fecha_pago = trim($row[18]);
-                            $valor_pago_total = trim($row[19]);
-                            $valor_pago_conc = trim($row[20]);
-                            $consumo = trim($row[21]);
-                            $csm_rea_cobrable = trim($row[22]);
-                            $csm_sin_con_valor = trim($row[23]);
-                            $tipo_nota = trim($row[24]);
-                            $valor_nota = trim($row[25]);
-                            $fact_total_conc = trim($row[26]);
-                            $nombre_tipo_pago = trim($row[27]);
-                            $query_tipo_pago = TipoPago::where('NOMBRE', $nombre_tipo_pago)->first();
-                            if(empty($query_tipo_pago)){
-                                $tipo_pago = new TipoPago();
-                                $tipo_pago->NOMBRE = $nombre_tipo_pago;
-                                $tipo_pago->save();
-                                $query_new_tipo_pago = TipoPago::where('NOMBRE', $nombre_tipo_pago)->first();
-                                $id_tipo_pago = $query_new_tipo_pago->ID_TIPO_PAGO;
-                                $elementos[] = ['mensaje' => "Tipo pago agregado en la posición '" . $i . "' ", 'elemento_agregado' =>  $nombre_tipo_pago];
-                            }else{
-                                $id_tipo_pago = $query_tipo_pago->ID_TIPO_PAGO;
-                            }
-                            $cartera_recuperada = trim($row[28]);
-                            $saldo_cartera = trim($row[29]);
-                            $edad_cierre_mes_ciclo = trim($row[30]);
-                            $query_tipo_edad = TipoEdad::where('NOMBRE', $edad_cierre_mes_ciclo)->first();
-                            if(empty($query_tipo_edad)){
-                                $tipo_edad = new TipoEdad();
-                                $tipo_edad->NOMBRE = $edad_cierre_mes_ciclo;
-                                $tipo_edad->save();
-                                $query_new_tipo_edad = TipoEdad::where('NOMBRE', $edad_cierre_mes_ciclo)->first();
-                                $id_tipo_edad = $query_new_tipo_edad->ID_TIPO_EDAD;
-                                $elementos[] = ['mensaje' => "Tipo edad agregado en la posición '" . $i . "' ", 'elemento_agregado' =>  $edad_cierre_mes_ciclo];
-                            }else{
-                                $id_tipo_edad = $query_tipo_edad->ID_TIPO_EDAD;
-                            }
-
-                            $facturado_cartera = trim($row[31]);
-
-                            // AQUI SE PONE EL 02 QUEMADO COMO DIA DE FACTURADO
-                            $fecha_factura = substr($periodo, 0, 4). '-'. substr($periodo, 4, 2). '-' .'02';
-
-                            $values = array(
-                                'PERIODO' => $periodo, 'FACTURA' => $factura, 'CLIENTE_ID' => $cliente_id,
-                                'FACTURA_TIPO_ID' => $factura_tipo_id, 'NOMBRE_CLIENTE' => $nombre_cliente,
-                                'DIRECCION_CLIENTE' => $direccion_cliente, 'ID_TIPO_MERCADO' => $id_tipo_mercado,
-                                'ID_TIPO_SUB_MERCADO' => $id_tipo_sub_mercado, 'ESTRATO' => $estrato,
-                                'ID_COD_DPTO' => $id_departamento, 'ID_COD_MPIO' => $id_municipio,
-                                'FECHA_ELAB_FACT' => $fecha_elaboracion_fact, 'FECHA_LIMITE1' => $fecha_limite1,
-                                'FECHA_LIMITE2' => $fecha_limite2, 'VALOR_TOT_FACT' => $valor_total_fact,
-                                'VALOR_FACT_CONC' => $valor_fact_conc, 'FECHA_PAGO' => $fecha_pago,
-                                'VALOR_PAGO_TOT' => $valor_pago_total, 'VALOR_PAGO_CONC' => $valor_pago_conc,
-                                'CONSUMO' => $consumo, 'CSM_REA_COBRABLE' => $csm_rea_cobrable,
-                                'CSM_SIN_CON_VALOR' => $csm_sin_con_valor, 'TIPO_NOTA' => $tipo_nota,
-                                'VALOR_NOTA' => $valor_nota, 'FACT_TOTAL_CONC' => $fact_total_conc,
-                                'ID_TIPO_PAGO' => $id_tipo_pago, 'CARTERA_RECUP' => $cartera_recuperada,
-                                'SALDO_CARTERA' => $saldo_cartera, 'ID_TIPO_EDAD' => $id_tipo_edad,
-                                'FACT_CARTERA' => $facturado_cartera, 'ID_COMERCIALIZADOR' => $id_comercializador,
-                                'FECHA_FACTURA' => $fecha_factura, 'ESTADO_FACTURA' => $estado_factura,
-                                'ID_TABLA_RUTA' => $id_tabla_ruta_fact_comer, 'FECHA_CREACION' => $fecha_creacion,
-                                'ID_USUARIO' => $id_usuario
-                            );
-                            DB::table('detalle_fact_comer_2021_2')->insert($values);
-                            $i++;
-                        } // FINAL FOREACH ROWS
-                        // QUERIES
-                        $consultas[] = DB::table('detalle_fact_comer_2021_2')
-                        ->select([
-                            DB::raw('COUNT(*) AS TOTAL'),
-                        ])->where('ID_TABLA_RUTA', $id_tabla_ruta_fact_comer)->get();
-                        $mensajes[] = ['mensaje' => 'Archivo cargado con exito', 'file' => $file];
-                        $valores[] = [
-                            'total' => $i,
-                        ];
-                        unlink($file);
-
-                    }// FINAL FOREACH FILES
-                    return ["resultado" => $consultas, "mensajes" => $mensajes, "elementos" => $elementos, "valores" => $valores];
-
-                    break;
                     // CASO OYM-RI
                 case '10':
-                    $operador_red = 'OYM-RI';
-                    foreach ($files as $archivo) {
-                        $reader = new \PhpOffice\PhpSpreadsheet\Reader\Xlsx();
-                        $filename = $archivo->getClientOriginalName();
-                        $tempFile = $archivo;
-                        $filepath = public_path('uploads/');
-                        $file = $filepath . $filename;
-                        $fecha_creacion = date('Y-m-d');
-                        $id_tipo_poblacion = 1;
-
-                        if (file_exists($file)) {
-                            unlink($file);
-                        }
-
-                        $query_ruta = ArchivosCargadosOYMRI::where('RUTA', $filename)->first();
-                        if ($query_ruta) {
-                            $mensajes[] = ["mensaje" => "El archivo ya existe", "file" => $file];
-                            continue;
-                        }
-
-                        move_uploaded_file($tempFile, $file);
-
-                        switch ($mes_consolidado) {
-                            case "Enero":
-                                $id_mes = 1;
-                                break;
-                            case "Febrero":
-                                $id_mes = 2;
-                                break;
-                            case "Marzo":
-                                $id_mes = 3;
-                                break;
-                            case "Abril":
-                                $id_mes = 4;
-                                break;
-                            case "Mayo":
-                                $id_mes = 5;
-                                break;
-                            case "Junio":
-                                $id_mes = 6;
-                                break;
-                            case "Julio":
-                                $id_mes = 7;
-                                break;
-                            case "Agosto":
-                                $id_mes = 8;
-                                break;
-                            case "Septiembre":
-                                $id_mes = 9;
-                                break;
-                            case "Octubre":
-                                $id_mes = 10;
-                                break;
-                            case "Noviembre":
-                                $id_mes = 11;
-                                break;
-                            case "Diciembre":
-                                $id_mes = 12;
-                                break;
-                        }
-
-
-                        // SAVE FILE
-                        $archivos_cargados_oymri = new ArchivosCargadosOYMRI();
-                        $archivos_cargados_oymri->ANO_FACTURA = $ano_factura;
-                        $archivos_cargados_oymri->PERIODO = $id_mes;
-                        $archivos_cargados_oymri->RUTA = $filename;
-                        $archivos_cargados_oymri->FECHA_CREACION = $fecha_creacion;
-                        $archivos_cargados_oymri->ID_USUARIO = $id_usuario;
-                        $archivos_cargados_oymri->save();
-
-                        $query_filename_oymri = ArchivosCargadosOYMRI::where('RUTA', $filename)->first();
-                        $id_tabla_ruta_oymri = $query_filename_oymri->ID_TABLA;
-                        $spreedsheet = $reader->load($file);
-                        $sheet_base = $spreedsheet->getSheet(0);
-                        $sheetData = $sheet_base->toArray();
-                        unset($sheetData[0]);
-
-                        $valor_bruto = 0;
-                        $valor_bruto_total = 0;
-                        $valor_subtotal_local = 0;
-                        $valor_subtotal_local_total = 0;
-                        $valor_impuesto_local = 0;
-                        $valor_impuesto_local_total = 0;
-                        $valor_neto_local = 0;
-                        $valor_neto_local_total = 0;
-                        $valor_desc_local = 0;
-                        $valor_desc_local_total = 0;
-                        $i = 0;
-                        foreach ($sheetData as $row) {
-                            $no_factura = trim($row[2]);
-                            $fecha_factura = trim($row[3]);
-                            $estado_factura = trim(strtoupper($row[7]));
-                            $nombre_cliente = trim($row[8]);
-                            $nombre_municipio = (trim(strtoupper($row[9])));
-                            $query_municipio = MunicipioVisita::where('NOMBRE', $nombre_municipio)->first();
-                            $id_municipio = $query_municipio->ID_MUNICIPIO;
-                            $id_departamento = $query_municipio->ID_DEPARTAMENTO;
-                            $valor_bruto = trim(str_replace(array('-', ','), '', $row[10]));
-                            if ($valor_bruto == '') $valor_bruto = 0;
-                            $valor_bruto_total = $valor_bruto_total + $valor_bruto;
-                            $valor_desc_local = trim(str_replace(array('-', ','), '', $row[11]));
-
-                            // ANOTHER CONDITIONAL
-                            if ($valor_desc_local == '') $valor_desc_local = 0;
-                            $valor_desc_local_total = $valor_desc_local_total + $valor_desc_local;
-                            $valor_subtotal_local = trim(str_replace(array('-', ','), '', $row[12]));
-                            if ($valor_subtotal_local == '') $valor_subtotal_local = 0;
-                            $valor_subtotal_local_total = $valor_subtotal_local_total + $valor_subtotal_local;
-                            $valor_impuesto_local =  trim(str_replace(array('-', ','), '', $row[13]));
-                            if ($valor_impuesto_local == '') $valor_impuesto_local = 0;
-                            //echo 'posicion: ' . $i;
-                            $valor_impuesto_local_total = $valor_impuesto_local_total + $valor_impuesto_local;
-                            $valor_neto_local = trim(str_replace(',', '', $row[14]));
-                            if ($valor_neto_local == '') $valor_neto_local = 0;
-                            $valor_neto_local_total = $valor_neto_local_total + $valor_neto_local;
-                            $concepto = trim($row[15]);
-                            $query_concepto = ConceptosFacturacion::where('NOMBRE', $concepto)->first();
-                            if ($query_concepto) {
-                                $id_concepto = $query_concepto->ID_CONCEPTO_FACT;
-                            } else {
-                                // INSERT
-                                $concepto_facturacion = new ConceptosFacturacion();
-                                $concepto_facturacion->NOMBRE = $concepto;
-                                $concepto_facturacion->save();
-                                $new_query_concepto = ConceptosFacturacion::where('NOMBRE', $concepto)->first();
-                                $id_concepto = $new_query_concepto->ID_CONCEPTO_FACT;
-                                $elementos[] = ['mensaje' => "Concepto facturación agregado en la posición '" . $i . "' ", 'elemento_agregado' =>  $concepto];
-                            }
-
-                            $periodo = trim($row[16]);
-                            $mes_factura = trim($row[17]);
-                            $ano_factura = trim($row[18]);
-
-                            $empresa = trim(strtoupper($row[19]));
-                            $query_empresa = Empresa::where('NOMBRE', $empresa)->first();
-                            $id_empresa = $query_empresa->ID_EMPRESA;
-                            $acta_mes = trim(strtoupper($row[20]));
-                            $observaciones = trim($row[21]);
-
-                            $observaciones == '' ? ' ' : $observaciones = $observaciones;
-
-                            $values = array(
-                                'NO_FACTURA' => $no_factura,
-                                'FECHA_FACTURA' => $fecha_factura,
-                                'ESTADO_FACTURA' => $estado_factura,
-                                'NOMBRE_CLIENTE' => $nombre_cliente,
-                                'ID_COD_DPTO' => $id_departamento,
-                                'ID_COD_MPIO' => $id_municipio,
-                                'VALOR_BRUTO' => $valor_bruto,
-                                'VALOR_DESC_LOCAL' => $valor_desc_local,
-                                'VALOR_SUBTOTAL_LOCAL' => $valor_subtotal_local,
-                                'VALOR_IMP_LOCAL' => $valor_impuesto_local,
-                                'VALOR_NETO_LOCAL' => $valor_neto_local,
-                                'ID_CONCEPTO' => $id_concepto,
-                                'PERIODO' => $periodo,
-                                'MES_FACTURA' => $mes_factura,
-                                'ANO_FACTURA' => $ano_factura,
-                                'ID_EMPRESA' => $id_empresa,
-                                'ACTA_MES' => $acta_mes,
-                                'OBSERVACIONES' => $observaciones,
-                                'ID_TABLA_RUTA' => $id_tabla_ruta_oymri,
-                                'FECHA_CREACION' => $fecha_creacion,
-                                'ID_USUARIO' => $id_usuario,
-                            );
-                            FacturacionOYMRI::insert($values);
-
-                            $i++;
-                        }
-                        // ENF FOREACH ROW
-
-                        // QUERIES
-                        $consultas[] = DB::table('facturacion_oymri_2021_2')->select([
-                            DB::raw('COUNT(*) AS TOTAL'),
-                            DB::raw('SUM(VALOR_BRUTO) AS TOTAL_VALOR_BRUTO'),
-                            DB::raw('SUM(VALOR_DESC_LOCAL) AS TOTAL_VALOR_DESC_LOCAL'),
-                            DB::raw('SUM(VALOR_SUBTOTAL_LOCAL) AS TOTAL_VALOR_SUBTOTAL_LOCAL'),
-                            DB::raw('SUM(VALOR_IMP_LOCAL) AS TOTAL_VALOR_IMP_LOCAL'),
-                            DB::raw('SUM(VALOR_NETO_LOCAL) AS TOTAL_VALOR_NETO_LOCAL')
-                        ])->where('ID_TABLA_RUTA', $id_tabla_ruta_oymri)->get();
-
-                        $mensajes[] = ['mensaje' => 'Archivo cargado con exito', 'file' => $file];
-                        $valores[] = [
-                            'total' => $i, 'valor_bruto_total' => $valor_bruto_total,
-                            'valor_desc_local_total' => $valor_desc_local_total, '
-                            valor_subtotal_local_total' => $valor_subtotal_local_total,
-                            'valor_impuesto_local_total' => $valor_impuesto_local_total,
-                            'valor_neto_local_total' => $valor_neto_local_total
-                        ];
-
-
-                        unlink($file);
-                    }
-                    // END FOREACH FILES
-                    return ["resultado" => $consultas, "mensajes" => $mensajes, "elementos" => $elementos, "valores" => $valores];
-                    break;
 
                     // CASO DE CENS
                 case '9':

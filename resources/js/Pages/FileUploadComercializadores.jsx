@@ -49,7 +49,7 @@ export default function Dashboard() {
             method: 'POST',
             body: formData
         };
-        fetch(FILE_UPLOAD_BASE_ENDPOINT + '/file-upload', requestOptions)
+        fetch(FILE_UPLOAD_BASE_ENDPOINT + '/file-upload-comercializadores', requestOptions)
             .then(async response => {
                 const isJson = response.headers.get('content-type')?.includes('application/json');
                 const data = isJson && await response.json();
@@ -74,7 +74,7 @@ export default function Dashboard() {
     return (
 
         <form onSubmit={fileSubmitHandler}>
-            <h1>Cargar liquidaciones</h1> <br/>
+        <h1>Cargar Comercializadores</h1> <br/>
             <input type="file" multiple onChange={uploadFileHandler} />
             <button type='submit'>Upload</button>
             {!fileSize && <p style={{ color: 'red' }}>File size exceeded!!</p>}

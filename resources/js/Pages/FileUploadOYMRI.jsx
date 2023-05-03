@@ -49,7 +49,7 @@ export default function Dashboard() {
             method: 'POST',
             body: formData
         };
-        fetch(FILE_UPLOAD_BASE_ENDPOINT + '/file-upload', requestOptions)
+        fetch(FILE_UPLOAD_BASE_ENDPOINT + '/file-upload-oyrmi', requestOptions)
             .then(async response => {
                 const isJson = response.headers.get('content-type')?.includes('application/json');
                 const data = isJson && await response.json();
@@ -74,6 +74,7 @@ export default function Dashboard() {
     return (
 
         <form onSubmit={fileSubmitHandler}>
+        <h1>Cargar OYMRI</h1> <br/>
             <input type="file" multiple onChange={uploadFileHandler} />
             <button type='submit'>Upload</button>
             {!fileSize && <p style={{ color: 'red' }}>File size exceeded!!</p>}
