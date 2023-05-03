@@ -14,6 +14,13 @@ use App\Models\ArchivosCargadosRefacturacion;
 use App\Models\ArchivosCargadosCens;
 use App\Models\ArchivosCargadosOYMRI;
 use App\Models\FacturacionOYMRI;
+use App\Models\DetalleFactComer;
+use App\Models\ArchivosCargadosFactComer;
+use App\Models\TipoMercado;
+use App\Models\TipoSubMercado;
+use App\Models\TipoPago;
+use App\Models\TipoEdad;
+use App\Models\Comercializador;
 use App\Models\ConceptosFacturacion;
 use App\Models\Empresa;
 use App\Models\Tarifa;
@@ -52,6 +59,48 @@ class FileController extends Controller
      *
      * @return Response
      */
+
+    public function fileRegister2(Request $request)
+    {
+        if ($request->files) {
+            $files = $request->files;
+            $cod_operador_red = '10';
+            $total_size = 0;
+            foreach ($files as $archivo) {
+                $filename = $archivo->getClientOriginalName();
+                $tempFile = $archivo;
+                $filepath = public_path('uploads/');
+                $file = $filepath . $filename;
+
+                switch ($cod_operador_red) {
+                    case '10':
+                        $query_ruta = ArchivosCargadosOYMRI::where('RUTA', $filename)->first();
+                        if ($query_ruta) {
+                            echo 'El archivos ya existe: '. $filename;
+                            // in this case continue 2 works to continue with the next iteration
+                            continue 2;
+                        }
+                        //echo 'El archivo no existe: '. $filename;
+                        break;
+                }
+
+
+                move_uploaded_file($tempFile, $file);
+
+                $reader = new \PhpOffice\PhpSpreadsheet\Reader\Xlsx();
+                $spreadsheet = $reader->load($file);
+                $sheet_base = $spreadsheet->getSheet(0);
+                $sheetData = $sheet_base->toArray();
+                foreach ($sheetData as $lines) {
+                    $new_array = implode($lines);
+                    $new_array = str_replace(' ', '', $new_array);
+                    $total_size += strlen($new_array);
+                }
+            }
+            echo 'Total files size: '. $total_size;
+        }
+    }
+
     public function fileRegister(Request $request)
     {
 
@@ -66,6 +115,41 @@ class FileController extends Controller
         {
             return strtr(utf8_decode($str), utf8_decode('àáâãäçèéêëìíîïñòóôõöùúûüýÿÀÁÂÃÄÇÈÉÊËÌÍÎÏÑÒÓÔÕÖÙÚÛÜÝ'), 'aaaaaceeeeiiiinooooouuuuyyAAAAACEEEEIIIINOOOOOUUUUY');
         }
+        function getFilesSize($files, $cod_operador_red){
+            $total_size = 0;
+            foreach ($files as $archivo) {
+                $filename = $archivo->getClientOriginalName();
+                $tempFile = $archivo;
+                $filepath = public_path('uploads/');
+                $file = $filepath . $filename;
+
+                switch ($cod_operador_red) {
+                    case '10':
+                        $query_ruta = ArchivosCargadosOYMRI::where('RUTA', $filename)->first();
+                        if ($query_ruta) {
+                            // echo 'El archivos ya existe: '. $filename;
+                            // in this case continue 2 works to continue with the next iteration
+                            continue 2;
+                        }
+                        //echo 'El archivo no existe: '. $filename;
+                        break;
+                }
+
+
+                move_uploaded_file($tempFile, $file);
+
+                $reader = new \PhpOffice\PhpSpreadsheet\Reader\Xlsx();
+                $spreadsheet = $reader->load($file);
+                $sheet_base = $spreadsheet->getSheet(0);
+                $sheetData = $sheet_base->toArray();
+                foreach ($sheetData as $lines) {
+                    $new_array = implode($lines);
+                    $new_array = str_replace(' ', '', $new_array);
+                    $total_size += strlen($new_array);
+                }
+            }
+            return $total_size;
+        }
 
 
         if ($request->files) {
@@ -77,7 +161,7 @@ class FileController extends Controller
             // }
             $k = 0;
             $files = $request->files;
-            $cod_operador_red = '10';
+            $cod_operador_red = '11';
             $consultas = array();
             $elementos = array();
             $valores = array();
@@ -91,7 +175,11 @@ class FileController extends Controller
             // $ano_factura = '2023';
 
             // OYM-RI
-            $mes_consolidado = 'Marzo';
+            // $mes_consolidado = 'Marzo';
+            // $ano_factura = '2023';
+
+            // Comercializadores
+            $mes_consolidado = 'Febrero';
             $ano_factura = '2023';
 
             // TABLES OF QUERIES
@@ -102,6 +190,183 @@ class FileController extends Controller
             $table_fact_reca_cens = "fact_reca_cens_" . strtolower($mes_consolidado) . "_" . $ano_factura . "_2";
 
             switch ($cod_operador_red) {
+                // CASO COMERCIALIZADORES
+                case '11':
+
+                    $operador_red = 'COMERCIALIZADORES';
+                    foreach($files as $archivo){
+                        $reader = new \PhpOffice\PhpSpreadsheet\Reader\Xlsx();
+                        $filename = $archivo->getClientOriginalName();
+                        $tempFile = $archivo;
+                        $filepath = public_path('uploads/');
+                        $file = $filepath . $filename;
+                        $fecha_creacion = date('Y-m-d');
+                        $id_tipo_poblacion = 1;
+                        if(file_exists($file)){
+                            unlink($file);
+                        }
+                        move_uploaded_file($tempFile, $file);
+
+
+
+
+                        $spreedsheet = $reader->load($file);
+                        $sheet_base = $spreedsheet->getSheet(0);
+                        $sheetData = $sheet_base->toArray();
+                        unset($sheetData[0]);
+                        // $nombre_comercializadora = 'VATIA S.A. E.S.P.';
+                        $nombre_comercializadora = 'VATIA S.A. E.S.P.';
+                        $query_comercializador = Comercializador::where('NOMBRE', $nombre_comercializadora)->first();
+                        $id_comercializador = $query_comercializador->ID_COMERCIALIZADOR;
+
+                        $archivos_cargados_fac_comer = new ArchivosCargadosFactComer();
+                        $archivos_cargados_fac_comer->ID_COMERCIALIZADOR = $id_comercializador;
+                        $archivos_cargados_fac_comer->RUTA = $filename;
+                        $archivos_cargados_fac_comer->FECHA_CREACION = $fecha_creacion;
+                        $archivos_cargados_fac_comer->ID_USUARIO = $id_usuario;
+                        $archivos_cargados_fac_comer->save();
+
+                        // GET LAST ID
+                        $id_tabla_ruta_fact_comer = ArchivosCargadosFactComer::max('ID_TABLA');
+
+                        $estado_factura = 2;
+                        $i = 0;
+                        foreach($sheetData as $row){
+                            // ASIGNACION DE VARIABLES;
+                            $periodo = trim($row[0]);
+                            $municipio = trim(strtoupper($row[10]));
+                            $query_municipio = Municipio::where('NOMBRE', $municipio)->first();
+                            $id_municipio = $query_municipio->ID_MUNICIPIO;
+                            $id_departamento = $query_municipio->ID_DEPARTAMENTO;
+                            //echo 'periodo: '. $periodo .' id_departamento: '. $id_departamento . ' id_municipio: '. $id_municipio . '<br>';
+
+                            // VERIFY IF INFO ALREADY EXISTE IN DATABASE
+                            $query_verify_info = DetalleFactComer::where('PERIODO', $periodo)
+                            ->where('ID_COD_DPTO', $id_departamento)->where('ID_COD_MPIO', $id_municipio)
+                            ->where('ID_COMERCIALIZADOR', $id_comercializador)->first();
+                            if($query_verify_info){
+                                $mensajes[] = ["mensaje" => "El periodo '". $periodo ."' ya existe para el municipio: '". $municipio."'..", "file" => $file];
+                                continue;
+                            }
+
+                            $factura = trim($row[1]);
+                            $cliente_id = trim($row[2]);
+                            $factura_tipo_id = trim($row[3]);
+                            $nombre_cliente = clearSpecialCharacters($row[4]);
+                            $direccion_cliente = clearSpecialCharacters($row[5]);
+                            $nombre_mercado = trim(strtoupper($row[6]));
+                            $query_tipo_mercado = TipoMercado::where('NOMBRE', $nombre_mercado)->first();
+                            if(empty($query_tipo_mercado)){
+                                $tipo_mercado = new TipoMercado();
+                                $tipo_mercado->NOMBRE = $nombre_mercado;
+                                $tipo_mercado->save();
+                                $query_new_tipo_mercado = TipoMercado::where('NOMBRE', $nombre_mercado)->first();
+                                $id_tipo_mercado = $query_new_tipo_mercado->ID_TIPO_MERCADO;
+                                $elementos[] = ['mensaje' => "Tipo mercado agregado en la posición '" . $i . "' ", 'elemento_agregado' =>  $nombre_mercado];
+                            }else{
+                                $id_tipo_mercado = $query_tipo_mercado->ID_TIPO_MERCADO;
+                            }
+
+                            $nombre_sub_mercado = trim($row[7]);
+                            $query_tipo_sub_mercado = TipoSubMercado::where('NOMBRE', $nombre_sub_mercado)->first();
+                            if(empty($query_tipo_sub_mercado)){
+                                $sub_mercado = new TipoSubMercado();
+                                $sub_mercado->NOMBRE = $nombre_sub_mercado;
+                                $sub_mercado->save();
+                                $query_new_tipo_sub_mercado = TipoSubMercado::where('NOMBRE', $nombre_sub_mercado)->first();
+                                $id_tipo_sub_mercado = $query_new_tipo_sub_mercado->ID_TIPO_SUB_MERCADO;
+                                $elementos[] = ['mensaje' => "Tipo submercado agregado en la posición '" . $i . "' ", 'elemento_agregado' =>  $nombre_sub_mercado];
+                            }else{
+                                $id_tipo_sub_mercado = $query_tipo_sub_mercado->ID_TIPO_SUB_MERCADO;
+                            }
+
+                            $estrato = trim($row[8]);
+                            $estrato == '' ? $estrato = 0 : $estrato = $estrato;
+
+                            $fecha_elaboracion_fact = trim($row[11]);
+                            $fecha_limite1 = trim($row[12]);
+                            $fecha_limite2 = trim($row[13]);
+                            $valor_total_fact = trim($row[16]);
+                            $valor_fact_conc = trim($row[17]);
+                            $fecha_pago = trim($row[18]);
+                            $valor_pago_total = trim($row[19]);
+                            $valor_pago_conc = trim($row[20]);
+                            $consumo = trim($row[21]);
+                            $csm_rea_cobrable = trim($row[22]);
+                            $csm_sin_con_valor = trim($row[23]);
+                            $tipo_nota = trim($row[24]);
+                            $valor_nota = trim($row[25]);
+                            $fact_total_conc = trim($row[26]);
+                            $nombre_tipo_pago = trim($row[27]);
+                            $query_tipo_pago = TipoPago::where('NOMBRE', $nombre_tipo_pago)->first();
+                            if(empty($query_tipo_pago)){
+                                $tipo_pago = new TipoPago();
+                                $tipo_pago->NOMBRE = $nombre_tipo_pago;
+                                $tipo_pago->save();
+                                $query_new_tipo_pago = TipoPago::where('NOMBRE', $nombre_tipo_pago)->first();
+                                $id_tipo_pago = $query_new_tipo_pago->ID_TIPO_PAGO;
+                                $elementos[] = ['mensaje' => "Tipo pago agregado en la posición '" . $i . "' ", 'elemento_agregado' =>  $nombre_tipo_pago];
+                            }else{
+                                $id_tipo_pago = $query_tipo_pago->ID_TIPO_PAGO;
+                            }
+                            $cartera_recuperada = trim($row[28]);
+                            $saldo_cartera = trim($row[29]);
+                            $edad_cierre_mes_ciclo = trim($row[30]);
+                            $query_tipo_edad = TipoEdad::where('NOMBRE', $edad_cierre_mes_ciclo)->first();
+                            if(empty($query_tipo_edad)){
+                                $tipo_edad = new TipoEdad();
+                                $tipo_edad->NOMBRE = $edad_cierre_mes_ciclo;
+                                $tipo_edad->save();
+                                $query_new_tipo_edad = TipoEdad::where('NOMBRE', $edad_cierre_mes_ciclo)->first();
+                                $id_tipo_edad = $query_new_tipo_edad->ID_TIPO_EDAD;
+                                $elementos[] = ['mensaje' => "Tipo edad agregado en la posición '" . $i . "' ", 'elemento_agregado' =>  $edad_cierre_mes_ciclo];
+                            }else{
+                                $id_tipo_edad = $query_tipo_edad->ID_TIPO_EDAD;
+                            }
+
+                            $facturado_cartera = trim($row[31]);
+
+                            // AQUI SE PONE EL 02 QUEMADO COMO DIA DE FACTURADO
+                            $fecha_factura = substr($periodo, 0, 4). '-'. substr($periodo, 4, 2). '-' .'02';
+
+                            $values = array(
+                                'PERIODO' => $periodo, 'FACTURA' => $factura, 'CLIENTE_ID' => $cliente_id,
+                                'FACTURA_TIPO_ID' => $factura_tipo_id, 'NOMBRE_CLIENTE' => $nombre_cliente,
+                                'DIRECCION_CLIENTE' => $direccion_cliente, 'ID_TIPO_MERCADO' => $id_tipo_mercado,
+                                'ID_TIPO_SUB_MERCADO' => $id_tipo_sub_mercado, 'ESTRATO' => $estrato,
+                                'ID_COD_DPTO' => $id_departamento, 'ID_COD_MPIO' => $id_municipio,
+                                'FECHA_ELAB_FACT' => $fecha_elaboracion_fact, 'FECHA_LIMITE1' => $fecha_limite1,
+                                'FECHA_LIMITE2' => $fecha_limite2, 'VALOR_TOT_FACT' => $valor_total_fact,
+                                'VALOR_FACT_CONC' => $valor_fact_conc, 'FECHA_PAGO' => $fecha_pago,
+                                'VALOR_PAGO_TOT' => $valor_pago_total, 'VALOR_PAGO_CONC' => $valor_pago_conc,
+                                'CONSUMO' => $consumo, 'CSM_REA_COBRABLE' => $csm_rea_cobrable,
+                                'CSM_SIN_CON_VALOR' => $csm_sin_con_valor, 'TIPO_NOTA' => $tipo_nota,
+                                'VALOR_NOTA' => $valor_nota, 'FACT_TOTAL_CONC' => $fact_total_conc,
+                                'ID_TIPO_PAGO' => $id_tipo_pago, 'CARTERA_RECUP' => $cartera_recuperada,
+                                'SALDO_CARTERA' => $saldo_cartera, 'ID_TIPO_EDAD' => $id_tipo_edad,
+                                'FACT_CARTERA' => $facturado_cartera, 'ID_COMERCIALIZADOR' => $id_comercializador,
+                                'FECHA_FACTURA' => $fecha_factura, 'ESTADO_FACTURA' => $estado_factura,
+                                'ID_TABLA_RUTA' => $id_tabla_ruta_fact_comer, 'FECHA_CREACION' => $fecha_creacion,
+                                'ID_USUARIO' => $id_usuario
+                            );
+                            DB::table('detalle_fact_comer_2021_2')->insert($values);
+                            $i++;
+                        } // FINAL FOREACH ROWS
+                        // QUERIES
+                        $consultas[] = DB::table('detalle_fact_comer_2021_2')
+                        ->select([
+                            DB::raw('COUNT(*) AS TOTAL'),
+                        ])->where('ID_TABLA_RUTA', $id_tabla_ruta_fact_comer)->get();
+                        $mensajes[] = ['mensaje' => 'Archivo cargado con exito', 'file' => $file];
+                        $valores[] = [
+                            'total' => $i,
+                        ];
+                        unlink($file);
+
+                    }// FINAL FOREACH FILES
+                    return ["resultado" => $consultas, "mensajes" => $mensajes, "elementos" => $elementos, "valores" => $valores];
+
+                    break;
                     // CASO OYM-RI
                 case '10':
                     $operador_red = 'OYM-RI';
@@ -113,10 +378,13 @@ class FileController extends Controller
                         $file = $filepath . $filename;
                         $fecha_creacion = date('Y-m-d');
                         $id_tipo_poblacion = 1;
-                        $mes_consolidado = 'Marzo';
+
+                        if (file_exists($file)) {
+                            unlink($file);
+                        }
 
                         $query_ruta = ArchivosCargadosOYMRI::where('RUTA', $filename)->first();
-                        if($query_ruta){
+                        if ($query_ruta) {
                             $mensajes[] = ["mensaje" => "El archivo ya existe", "file" => $file];
                             continue;
                         }
