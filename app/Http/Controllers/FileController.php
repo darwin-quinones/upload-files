@@ -15,6 +15,7 @@ use App\Models\ArchivosCargadosCens;
 use App\Models\ArchivosCargadosOYMRI;
 use App\Models\FacturacionOYMRI;
 use App\Models\DetalleFactComer;
+use App\Models\FacturacionComercializadores;
 use App\Models\ArchivosCargadosFactComer;
 use App\Models\TipoMercado;
 use App\Models\TipoSubMercado;
@@ -378,7 +379,7 @@ class FileController extends Controller
 
                     $id_municipio = $query_municipio->ID_MUNICIPIO;
                     $id_departamento = $query_municipio->ID_DEPARTAMENTO;
-                    //echo 'periodo: '. $periodo .' id_departamento: '. $id_departamento . ' id_municipio: '. $id_municipio . '<br>';
+
 
                     // VERIFY IF INFO ALREADY EXISTE IN DATABASE
                     $query_verify_info = DetalleFactComer::where('PERIODO', $periodo)
@@ -469,29 +470,30 @@ class FileController extends Controller
                     // AQUI SE PONE EL 02 QUEMADO COMO DIA DE FACTURADO
                     $fecha_factura = substr($periodo, 0, 4) . '-' . substr($periodo, 4, 2) . '-' . '02';
 
-                    // $values = array(
-                    //     'PERIODO' => $periodo, 'FACTURA' => $factura, 'CLIENTE_ID' => $cliente_id,
-                    //     'FACTURA_TIPO_ID' => $factura_tipo_id, 'NOMBRE_CLIENTE' => $nombre_cliente,
-                    //     'DIRECCION_CLIENTE' => $direccion_cliente, 'ID_TIPO_MERCADO' => $id_tipo_mercado,
-                    //     'ID_TIPO_SUB_MERCADO' => $id_tipo_sub_mercado, 'ESTRATO' => $estrato,
-                    //     'ID_COD_DPTO' => $id_departamento, 'ID_COD_MPIO' => $id_municipio,
-                    //     'FECHA_ELAB_FACT' => $fecha_elaboracion_fact, 'FECHA_LIMITE1' => $fecha_limite1,
-                    //     'FECHA_LIMITE2' => $fecha_limite2, 'VALOR_TOT_FACT' => $valor_total_fact,
-                    //     'VALOR_FACT_CONC' => $valor_fact_conc, 'FECHA_PAGO' => $fecha_pago,
-                    //     'VALOR_PAGO_TOT' => $valor_pago_total, 'VALOR_PAGO_CONC' => $valor_pago_conc,
-                    //     'CONSUMO' => $consumo, 'CSM_REA_COBRABLE' => $csm_rea_cobrable,
-                    //     'CSM_SIN_CON_VALOR' => $csm_sin_con_valor, 'TIPO_NOTA' => $tipo_nota,
-                    //     'VALOR_NOTA' => $valor_nota, 'FACT_TOTAL_CONC' => $fact_total_conc,
-                    //     'ID_TIPO_PAGO' => $id_tipo_pago, 'CARTERA_RECUP' => $cartera_recuperada,
-                    //     'SALDO_CARTERA' => $saldo_cartera, 'ID_TIPO_EDAD' => $id_tipo_edad,
-                    //     'FACT_CARTERA' => $facturado_cartera, 'ID_COMERCIALIZADOR' => $id_comercializador,
-                    //     'FECHA_FACTURA' => $fecha_factura, 'ESTADO_FACTURA' => $estado_factura,
-                    //     'ID_TABLA_RUTA' => $id_tabla_ruta_fact_comer, 'FECHA_CREACION' => $fecha_creacion,
-                    //     'ID_USUARIO' => $id_usuario
-                    // );
-                    // DB::table('detalle_fact_comer_2021_2')->insert($values);
+                    $values = array(
+                        'PERIODO' => $periodo, 'FACTURA' => $factura, 'CLIENTE_ID' => $cliente_id,
+                        'FACTURA_TIPO_ID' => $factura_tipo_id, 'NOMBRE_CLIENTE' => $nombre_cliente,
+                        'DIRECCION_CLIENTE' => $direccion_cliente, 'ID_TIPO_MERCADO' => $id_tipo_mercado,
+                        'ID_TIPO_SUB_MERCADO' => $id_tipo_sub_mercado, 'ESTRATO' => $estrato,
+                        'ID_COD_DPTO' => $id_departamento, 'ID_COD_MPIO' => $id_municipio,
+                        'FECHA_ELAB_FACT' => $fecha_elaboracion_fact, 'FECHA_LIMITE1' => $fecha_limite1,
+                        'FECHA_LIMITE2' => $fecha_limite2, 'VALOR_TOT_FACT' => $valor_total_fact,
+                        'VALOR_FACT_CONC' => $valor_fact_conc, 'FECHA_PAGO' => $fecha_pago,
+                        'VALOR_PAGO_TOT' => $valor_pago_total, 'VALOR_PAGO_CONC' => $valor_pago_conc,
+                        'CONSUMO' => $consumo, 'CSM_REA_COBRABLE' => $csm_rea_cobrable,
+                        'CSM_SIN_CON_VALOR' => $csm_sin_con_valor, 'TIPO_NOTA' => $tipo_nota,
+                        'VALOR_NOTA' => $valor_nota, 'FACT_TOTAL_CONC' => $fact_total_conc,
+                        'ID_TIPO_PAGO' => $id_tipo_pago, 'CARTERA_RECUP' => $cartera_recuperada,
+                        'SALDO_CARTERA' => $saldo_cartera, 'ID_TIPO_EDAD' => $id_tipo_edad,
+                        'FACT_CARTERA' => $facturado_cartera, 'ID_COMERCIALIZADOR' => $id_comercializador,
+                        'FECHA_FACTURA' => $fecha_factura, 'ESTADO_FACTURA' => $estado_factura,
+                        'ID_TABLA_RUTA' => $id_tabla_ruta_fact_comer, 'FECHA_CREACION' => $fecha_creacion,
+                        'ID_USUARIO' => $id_usuario
+                    );
+                    DB::table('detalle_fact_comer_2021_2')->insert($values);
                     $i++;
                 } // FINAL FOREACH ROWS
+                unlink($file);
                 // QUERIES
                 $consultas[] = DB::table('detalle_fact_comer_2021_2')
                     ->select([
@@ -501,45 +503,67 @@ class FileController extends Controller
                 $valores[] = [
                     'total' => $i,
                 ];
-                unlink($file);
+                if($i == 0) {
+                    ArchivosCargadosFactComer::where('ID_TABLA', $id_tabla_ruta_fact_comer)->delete();
+                }
 
-                $periodos = DB::table('detalle_fact_comer_2021_2')
-                ->selectRaw('PERIODO')->where('ID_TABLA_RUTA', $id_tabla_ruta_fact_comer)->groupBy('PERIODO')->get();
+                $periods = DB::table('detalle_fact_comer_2021_2')
+                    ->selectRaw('PERIODO')->where('ID_TABLA_RUTA', $id_tabla_ruta_fact_comer)->groupBy('PERIODO')->get();
 
-            //     $resultados_periodos = DB::table('detalle_fact_comer_2021_2 as DFC')
-            // ->join('departamentos_visitas_2 as DV', 'DFC.ID_COD_DPTO', '=', 'DV.ID_DEPARTAMENTO')
-            // ->join('municipios_visitas_2 as MV', 'DFC.ID_COD_MPIO', '=', 'MV.ID_MUNICIPIO')
-            // ->selectRaw('DISTINCT DFC.ID_COD_MPIO, MV.NOMBRE, DFC.ID_COD_DPTO, DV.NOMBRE,
-            //             DFC.ID_COMERCIALIZADOR, DFC.ESTADO_FACTURA, DFC.PERIODO, DFC.FECHA_FACTURA,
-            //             DFC.FECHA_CREACION, SUM(DFC.VALOR_FACT_CONC) AS VALOR_FACT, SUM(DFC.VALOR_NOTA) AS AJUSTE_FACT,
-            //             SUM(DFC.VALOR_PAGO_CONC) AS VALOR_RECA, SUM(DFC.CSM_SIN_CON_VALOR) AS VALOR_ENER,
-            //             SUM(DFC.VALOR_PAGO_CONC + DFC.CARTERA_RECUP) AS VALOR_FAV, SUM(DFC.CONSUMO) AS CONSUMO,
-            //             COUNT(DFC.ID_COD_MPIO) AS NO_USUARIOS')
-            // ->where('DFC.ID_TABLA_RUTA', '=', $id_tabla_ruta_fact_comer)
-            // ->where('DFC.PERIODO', '=', 202212)
-            // ->groupBy('DFC.ID_COD_MPIO', 'DFC.ID_COMERCIALIZADOR')->get();
-            // ->having(DB::raw('COUNT(DFC.ID_COD_MPIO)'), '>=', 1)
+                foreach ($periods as $period) {
+                    $results_period = DB::select(" SELECT DISTINCT(DFC.ID_COD_MPIO), MV.NOMBRE AS NOMBRE_MPIO,
+                        DFC.ID_COD_DPTO, DV.NOMBRE AS NOMBRE_DPTO, DFC.ID_COMERCIALIZADOR,
+                        DFC.ESTADO_FACTURA, DFC.PERIODO, DFC.FECHA_FACTURA,
+                        DFC.FECHA_CREACION,
+                        SUM(DFC.VALOR_FACT_CONC) AS VALOR_FACT,
+                        SUM(DFC.VALOR_NOTA) AS AJUSTE_FACT,
+                        SUM(DFC.VALOR_PAGO_CONC) AS VALOR_RECA,
+                        SUM(DFC.CSM_SIN_CON_VALOR) AS VALOR_ENER,
+                        SUM(DFC.VALOR_PAGO_CONC + DFC.CARTERA_RECUP) AS VALOR_FAV,
+                        SUM(DFC.CONSUMO) AS CONSUMO, COUNT(DFC.ID_COD_MPIO) AS NO_USUARIOS
+                        FROM detalle_fact_comer_2021_2 DFC, departamentos_visitas_2 DV, municipios_visitas_2 MV
+                        WHERE DFC.ID_COD_DPTO = DV.ID_DEPARTAMENTO
+                        AND DFC.ID_COD_MPIO = MV.ID_MUNICIPIO
+                        AND DV.ID_DEPARTAMENTO = MV.ID_DEPARTAMENTO
+                        AND DFC.ID_TABLA_RUTA = ?
+                        AND DFC.PERIODO = ?
+                        GROUP BY DFC.ID_COD_MPIO, DFC.ID_COMERCIALIZADOR, MV.NOMBRE, DFC.ID_COD_DPTO, DV.NOMBRE, DFC.ESTADO_FACTURA, DFC.PERIODO, DFC.FECHA_FACTURA,
+                        DFC.FECHA_CREACION
+                        HAVING COUNT(DFC.ID_COD_MPIO) >= 1
+                        ", [$id_tabla_ruta_fact_comer, $period->PERIODO]);
 
+                    // SAVE INFO IN
 
-                $resultados_periodos = DB::table('detalle_fact_comer_2021_2')
-                ->select(DB::raw('DISTINCT detalle_fact_comer_2021_2.ID_COD_MPIO, municipios_visitas_2.NOMBRE, detalle_fact_comer_2021_2.ID_COD_DPTO, departamentos_visitas_2.NOMBRE, detalle_fact_comer_2021_2.ID_COMERCIALIZADOR, detalle_fact_comer_2021_2.ESTADO_FACTURA, detalle_fact_comer_2021_2.PERIODO, detalle_fact_comer_2021_2.FECHA_FACTURA, detalle_fact_comer_2021_2.FECHA_CREACION, SUM(detalle_fact_comer_2021_2.VALOR_FACT_CONC) AS VALOR_FACT, SUM(detalle_fact_comer_2021_2.VALOR_NOTA) AS AJUSTE_FACT, SUM(detalle_fact_comer_2021_2.VALOR_PAGO_CONC) AS VALOR_RECA, SUM(detalle_fact_comer_2021_2.CSM_SIN_CON_VALOR) AS VALOR_ENER, SUM(detalle_fact_comer_2021_2.VALOR_PAGO_CONC + detalle_fact_comer_2021_2.CARTERA_RECUP) AS VALOR_FAV, SUM(detalle_fact_comer_2021_2.CONSUMO) AS CONSUMO, COUNT(detalle_fact_comer_2021_2.ID_COD_MPIO) AS NO_USUARIOS'))
-                ->join('departamentos_visitas_2', 'detalle_fact_comer_2021_2.ID_COD_DPTO', '=', 'departamentos_visitas_2.ID_DEPARTAMENTO')
-                ->join('municipios_visitas_2', function ($join) {
-                $join->on('detalle_fact_comer_2021_2.ID_COD_MPIO', '=', 'municipios_visitas_2.ID_MUNICIPIO')
-                ->on('departamentos_visitas_2.ID_DEPARTAMENTO', '=', 'municipios_visitas_2.ID_DEPARTAMENTO');
-                })
-                ->where('detalle_fact_comer_2021_2.ID_TABLA_RUTA', '=', 47)
-                ->where('detalle_fact_comer_2021_2.PERIODO', '=', 202301)
-                ->groupBy('detalle_fact_comer_2021_2.ID_COD_MPIO', 'detalle_fact_comer_2021_2.ID_COMERCIALIZADOR')
-                ->having(DB::raw('COUNT(detalle_fact_comer_2021_2.ID_COD_MPIO)'), '>=', 1)
-                //->pluck('detalle_fact_comer_2021_2.ID_COD_MPIO', 'detalle_fact_comer_2021_2.ID_COMERCIALIZADOR')
-                ->get();
+                    foreach ($results_period as $result) {
+                        $result_values = array(
+                            'ID_COMERCIALIZADOR' => $result->ID_COMERCIALIZADOR,
+                            'ID_COD_DPTO' => $result->ID_COD_DPTO,
+                            'ID_COD_MPIO' => $result->ID_COD_MPIO,
+                            'FECHA_FACTURA' => $result->FECHA_FACTURA,
+                            'PERIODO_FACTURA' => $result->PERIODO,
+                            'VALOR_FACTURA' => $result->VALOR_FACT,
+                            'AJUSTE_FACT' => $result->AJUSTE_FACT,
+                            'VALOR_RECAUDO' => $result->VALOR_RECA,
+                            'AJUSTE_RECA' => 0,
+                            'VALOR_ENERGIA' => $result->VALOR_ENER,
+                            'CUOTA_ENERGIA' => 0,
+                            'OTROS_AJUSTES' => 0,
+                            'VALOR_FAVOR' => $result->VALOR_FAV,
+                            'CONSUMO' => $result->CONSUMO,
+                            'NO_USUARIOS' => $result->NO_USUARIOS,
+                            'ESTADO_FACTURA' => $result->ESTADO_FACTURA,
+                            'FECHA_CREACION' => $result->FECHA_CREACION,
+                            'FECHA_ACTUALIZACION' =>'1900-01-01',
+                            'ID_USUARIO' => $id_usuario
+                        );
 
-                var_dump($resultados_periodos);
+                        DB::table('facturacion_comercializadores_2')->insert($result_values);
+                    }
+                }
             } // FINAL FOREACH FILES
 
 
-            //return ["resultado" => $consultas, "mensajes" => $mensajes, "elementos" => $elementos, "valores" => $valores];
+            return ["Status" => true, "resultado" => $consultas, "mensajes" => $mensajes, "elementos" => $elementos, "valores" => $valores];
         }
     }
 
