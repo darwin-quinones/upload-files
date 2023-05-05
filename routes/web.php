@@ -31,6 +31,9 @@ Route::post('file-upload-oyrmi', [FileController::class, 'FileUploadOYMRI']);
 Route::get('/file-upload-comercializadores', [FileController::class, 'uploadComercializadores'])->name('file.uploadComercializadores');
 Route::post('/file-upload-comercializadores', [FileController::class, 'FileUploadComercializadores']);
 
+Route::get('reportes-excel', [FileController::class, 'excelReports'])->name('excelReports');
+Route::post('generar-reportes-excel', [FileController::class, 'genereExcelReports']);
+
 
 
 
