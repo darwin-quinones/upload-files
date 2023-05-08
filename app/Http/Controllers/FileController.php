@@ -56,11 +56,13 @@ class FileController extends Controller
     }
     public function genereExcelReports(Request $request)
     {
-        $id_month = $request->input('id_month');
-        $id_year = $request->input('id_year');
         $report_code = $request->input('report_code');
-
-        $data = DB::select("SELECT DV.NOMBRE AS DEPARTAMENTO,
+        switch ($report_code) {
+                //? Reporte Operadores - Periodo
+            case 1:
+                $id_month = $request->input('id_month');
+                $id_year = $request->input('id_year');
+                $data = DB::select("SELECT DV.NOMBRE AS DEPARTAMENTO,
                 MV.NOMBRE AS MUNICIPIO,
                 OP.NOMBRE AS OPERADOR,
                 FO.FECHA_FACTURA AS FECHA_FACTURA,
@@ -95,54 +97,309 @@ class FileController extends Controller
                 AND YEAR(FO.FECHA_FACTURA) = ?
                 AND MONTH(FO.FECHA_FACTURA) = ?
                 ORDER BY DV.NOMBRE, MV.NOMBRE, FO.FECHA_FACTURA DESC", [$id_year, $id_month]);
-        $mySpreadsheet = new \PhpOffice\PhpSpreadsheet\Spreadsheet();
+                $mySpreadsheet = new \PhpOffice\PhpSpreadsheet\Spreadsheet();
 
-        // delete the default active sheet
-        $mySpreadsheet->removeSheetByIndex(0);
+                // delete the default active sheet
+                $mySpreadsheet->removeSheetByIndex(0);
 
-        // Create "Sheet 1" tab as the first worksheet.
-        // https://phpspreadsheet.readthedocs.io/en/latest/topics/worksheets/adding-a-new-worksheet
-        $worksheet1 = new \PhpOffice\PhpSpreadsheet\Worksheet\Worksheet($mySpreadsheet, "Sheet 1");
-        $mySpreadsheet->addSheet($worksheet1, 0);
+                // Create "Sheet 1" tab as the first worksheet.
+                // https://phpspreadsheet.readthedocs.io/en/latest/topics/worksheets/adding-a-new-worksheet
+                $worksheet1 = new \PhpOffice\PhpSpreadsheet\Worksheet\Worksheet($mySpreadsheet, "Reporte Operadores - Periodo");
+                $mySpreadsheet->addSheet($worksheet1, 0);
 
-        // Sheet 2 contains list of ferrari cars and when they were manufactured.
+                $data_head = [
+                    'DEPARTAMENTO', 'MUNICIPIO', 'OPERADOR', 'FECHA_FACTURA',
+                    'PERIODO', 'VALOR_FACTURA', 'AJUSTE_FACT', 'VALOR_RECAUDO',
+                    'AJUSTE_RECA', 'VALOR_ENERGIA', 'CUOTA_ENERGIA', 'OTROS_AJUSTES',
+                    'VALOR_FAVOR', 'CONSUMO', 'ESTADO_FACTURA', 'ESTADO RECAUDO', 'FECHA RECA. BITACORA'
+                ];
 
-        $data_head = ['DEPARTAMENTO', 'MUNICIPIO', 'OPERADOR', 'FECHA_FACTURA',
-        'PERIODO', 'VALOR_FACTURA', 'AJUSTE_FACT', 'VALOR_RECAUDO',
-        'AJUSTE_RECA', 'VALOR_ENERGIA', 'CUOTA_ENERGIA', 'OTROS_AJUSTES',
-        'VALOR_FAVOR', 'CONSUMO', 'ESTADO_FACTURA', 'ESTADO RECAUDO', 'FECHA RECA. BITACORA'];
+                $dataArray = json_decode(json_encode($data), true); // convert object to array
+                $data = array_map(function ($row) {
+                    return array_values((array) $row);
+                }, $dataArray); // transform to 2D array
+                array_unshift($data, $data_head); //* ADD NEW ROW DATA IN THE FIRST POSITION
+                $worksheet1->fromArray($data, null, 'A1'); ///* FILL WORKSHEET
+                $worksheets = [$worksheet1];
 
-        $dataArray = json_decode(json_encode($data), true); // convert object to array
-        $data = array_map(function($row) { return array_values((array) $row); }, $dataArray); // transform to 2D array
-        array_unshift($data, $data_head);
-        $worksheet1->fromArray($data, null, 'A1');
-        // $worksheet1->fromArray($data);
+                // Change the widths of the columns to be appropriately large for the content in them.
+                foreach ($worksheets as $worksheet) {
+                    foreach ($worksheet->getColumnIterator() as $column) {
+                        $worksheet->getColumnDimension($column->getColumnIndex())->setAutoSize(true);
+                    }
+                }
+                $filename = "Reporte Operadores - Periodo " . $id_year . $id_month . ".xlsx";
 
-        // Change the widths of the columns to be appropriately large for the content in them.
-        // https://stackoverflow.com/questions/62203260/php-spreadsheet-cant-find-the-function-to-auto-size-column-width
-        $worksheets = [$worksheet1];
+                // Set the path to the directory where the file will be saved
+                $directoryPath = public_path('uploads/reports');
 
-        foreach ($worksheets as $worksheet) {
-            foreach ($worksheet->getColumnIterator() as $column) {
-                $worksheet->getColumnDimension($column->getColumnIndex())->setAutoSize(true);
-            }
+                // Ensure the directory exists, if it doesn't create it
+                if (!file_exists($directoryPath)) {
+                    mkdir($directoryPath, 0755, true);
+                }
+                // Set the full file path
+                $filePath = $directoryPath . '/' . $filename;
+                // ensure the file exists. if exists will deleted it
+                if (file_exists($filePath)) {
+                    unlink($filePath);
+                }
+
+                // Save to file.
+                $writer = new \PhpOffice\PhpSpreadsheet\Writer\Xlsx($mySpreadsheet);
+                $writer->save($filePath);
+
+                // File is save here: public\uploads\reports\Reporte Operadores - Periodo 202302.xlsx
+                return response()->download($filePath);
+                break;
+            case 2:
+                // Reporte Operadores - Rango
+                $fecha_inicio = $request->input('fecha_inicio');
+                $fecha_fin = $request->input('fecha_fin');
+                $data = DB::select("SELECT
+                    DV.NOMBRE AS DEPARTAMENTO,
+                    MV.NOMBRE AS MUNICIPIO,
+                    OP.NOMBRE AS OPERADOR,
+                    FO.FECHA_FACTURA AS FECHA_FACTURA,
+                    FO.PERIODO_FACTURA AS PERIODO,
+                    FO.VALOR_FACTURA AS VALOR_FACTURA,
+                    FO.AJUSTE_FACT AS AJUSTE_FACT,
+                    FO.VALOR_RECAUDO AS VALOR_RECAUDO,
+                    FO.AJUSTE_RECA AS AJUSTE_RECA,
+                    FO.VALOR_ENERGIA AS VALOR_ENERGIA,
+                    FO.CUOTA_ENERGIA AS CUOTA_ENERGIA,
+                    FO.OTROS_AJUSTES AS OTROS_AJUSTES,
+                    FO.VALOR_FAVOR AS VALOR_FAVOR,
+                    FO.CONSUMO AS CONSUMO,
+                    CASE WHEN FO.ESTADO_FACTURA = 1 THEN 'PAGADA' WHEN FO.ESTADO_FACTURA = 2 THEN 'PENDIENTE DE ENVIO'
+                END AS ESTADO_FACTURA,
+                CASE WHEN RO.ESTADO_RECAUDO = 1 THEN 'PENDIENTE' WHEN RO.ESTADO_RECAUDO = 2 THEN 'PENDIENTE DE ENVIO'
+                END AS ESTADO_RECAUDO,
+                RO.FECHA_PAGO_BITACORA AS 'FECHA RECA. BITACORA'
+                FROM
+                    facturacion_operadores_2 FO
+                LEFT JOIN recaudo_operadores_2 RO ON FO.ID_FACTURACION = RO.ID_FACTURACION,
+                    departamentos_visitas_2 DV,
+                    municipios_visitas_2 MV,
+                    operadores_2 OP
+                WHERE
+                    FO.ID_COD_DPTO = DV.ID_DEPARTAMENTO AND FO.ID_COD_MPIO = MV.ID_MUNICIPIO AND DV.ID_DEPARTAMENTO = MV.ID_DEPARTAMENTO AND FO.ID_OPERADOR = OP.ID_OPERADOR
+                    AND FO.FECHA_FACTURA BETWEEN ? AND ?
+                ORDER BY
+                    DV.NOMBRE, MV.NOMBRE, FO.FECHA_FACTURA
+                DESC", [$fecha_inicio, $fecha_fin]);
+
+                $mySpreadsheet = new \PhpOffice\PhpSpreadsheet\Spreadsheet();
+                // delete the default active sheet
+                $mySpreadsheet->removeSheetByIndex(0);
+                $worksheet1 = new \PhpOffice\PhpSpreadsheet\Worksheet\Worksheet($mySpreadsheet, "Reporte Operadores - Rango");
+                $mySpreadsheet->addSheet($worksheet1, 0);
+                $data_head = [
+                    'DEPARTAMENTO', 'MUNICIPIO', 'OPERADOR', 'FECHA_FACTURA',
+                    'PERIODO', 'VALOR_FACTURA', 'AJUSTE_FACT', 'VALOR_RECAUDO',
+                    'AJUSTE_RECA', 'VALOR_ENERGIA', 'CUOTA_ENERGIA', 'OTROS_AJUSTES',
+                    'VALOR_FAVOR', 'CONSUMO', 'ESTADO_FACTURA', 'ESTADO RECAUDO', 'FECHA RECA. BITACORA'
+                ];
+                $dataArray = json_decode(json_encode($data), true); // convert object to array
+                $data = array_map(function ($row) {
+                    return array_values($row);
+                }, $dataArray); // transform to 2D array
+                array_unshift($data, $data_head);
+                $worksheet1->fromArray($data, null, 'A1');
+                $worksheets = [$worksheet1];
+
+                // Change the widths of the columns to be appropriately large for the content in them.
+                foreach ($worksheets as $worksheet) {
+                    foreach ($worksheet->getColumnIterator() as $column) {
+                        $worksheet->getColumnDimension($column->getColumnIndex())->setAutoSize(true);
+                    }
+                }
+                $filename = "Reporte Operadores - Rango " . $fecha_inicio . " & " . $fecha_fin . ".xlsx";
+                // Set the path to the directory where the file will be saved
+                $directoryPath = public_path('uploads/reports');
+                // Ensure the directory exists, if it doesn't create it
+                if (!file_exists($directoryPath)) {
+                    mkdir($directoryPath, 0755, true);
+                }
+                // set the file path
+                $filePath = $directoryPath . '/' . $filename;
+                // Ensure the file exists. If exists will be deleted id
+                if (file_exists($filePath)) {
+                    unlink($filePath);
+                }
+                // Save to file.
+                $writer = new \PhpOffice\PhpSpreadsheet\Writer\Xlsx($mySpreadsheet);
+                $writer->save($filePath);
+                return response()->download($filePath);
+                break;
+
+            case 3:
+                //Reporte Comercializadores por periodo
+                $id_month = $request->input('id_month');
+                $id_year = $request->input('id_year');
+                $data = DB::select("SELECT DV.NOMBRE AS DEPARTAMENTO,
+                    MV.NOMBRE AS MUNICIPIO,
+                    CO.NOMBRE AS COMERCIALIZADOR,
+                    FC.FECHA_FACTURA AS FECHA_FACTURA,
+                    FC.PERIODO_FACTURA AS PERIODO,
+                    FC.VALOR_FACTURA AS VALOR_FACTURA,
+                    FC.AJUSTE_FACT AS AJUSTE_FACT,
+                    FC.VALOR_RECAUDO AS VALOR_RECAUDO,
+                    FC.AJUSTE_RECA AS AJUSTE_RECA,
+                    FC.VALOR_ENERGIA AS VALOR_ENERGIA,
+                    FC.CUOTA_ENERGIA AS CUOTA_ENERGIA,
+                    FC.OTROS_AJUSTES AS OTROS_AJUSTES,
+                    FC.VALOR_FAVOR AS VALOR_FAVOR,
+                    FC.CONSUMO AS CONSUMO,
+                CASE WHEN FC.ESTADO_FACTURA = 1 THEN 'PAGADA' WHEN FC.ESTADO_FACTURA = 2 THEN 'PENDIENTE ENVIO'
+                END AS ESTADO_FACTURA,
+                CASE WHEN RC.ESTADO_RECAUDO = 1 THEN 'PAGADA' WHEN RC.ESTADO_RECAUDO = 2 THEN 'PENDIENTE ENVIO'
+                END AS ESTADO_RECAUDO,
+                    RC.FECHA_PAGO_BITACORA AS 'FECHA RECA. BITACORA'
+                FROM
+                    facturacion_comercializadores_2 FC
+                LEFT JOIN recaudo_comercializadores_2 RC ON
+                    FC.ID_FACTURACION = RC.ID_FACTURACION,
+                    departamentos_visitas_2 DV,
+                    municipios_visitas_2 MV,
+                    comercializadores_2 CO
+                WHERE
+                    FC.ID_COD_DPTO = DV.ID_DEPARTAMENTO AND FC.ID_COD_MPIO = MV.ID_MUNICIPIO AND DV.ID_DEPARTAMENTO = MV.ID_DEPARTAMENTO AND FC.ID_COMERCIALIZADOR = CO.ID_COMERCIALIZADOR
+                    AND YEAR(FC.FECHA_FACTURA) = ? AND MONTH(FC.FECHA_FACTURA) = ?
+                ORDER BY
+                    DV.NOMBRE, MV.NOMBRE, FC.FECHA_FACTURA
+                DESC", [$id_year, $id_month]);
+                $mySpreadsheet = new \PhpOffice\PhpSpreadsheet\Spreadsheet();
+
+                // delete the default active sheet
+                $mySpreadsheet->removeSheetByIndex(0);
+
+                // Create "Sheet 1" tab as the first worksheet.
+                // https://phpspreadsheet.readthedocs.io/en/latest/topics/worksheets/adding-a-new-worksheet
+                $worksheet1 = new \PhpOffice\PhpSpreadsheet\Worksheet\Worksheet($mySpreadsheet, "Reporte Comer-Periodo");
+                $mySpreadsheet->addSheet($worksheet1, 0);
+                $data_head = [
+                    'DEPARTAMENTO', 'MUNICIPIO', 'OPERADOR', 'FECHA_FACTURA',
+                    'PERIODO', 'VALOR_FACTURA', 'AJUSTE_FACT', 'VALOR_RECAUDO',
+                    'AJUSTE_RECA', 'VALOR_ENERGIA', 'CUOTA_ENERGIA', 'OTROS_AJUSTES',
+                    'VALOR_FAVOR', 'CONSUMO', 'ESTADO_FACTURA', 'ESTADO RECAUDO', 'FECHA RECA. BITACORA'
+                ];
+                $dataArray = json_decode(json_encode($data), true); // convert object to array
+                $data = array_map(function ($row) {
+                    return array_values((array) $row);
+                }, $dataArray); // transform to 2D array
+                array_unshift($data, $data_head); //* ADD NEW ROW DATA IN THE FIRST POSITION
+                $worksheet1->fromArray($data, null, 'A1'); ///* FILL WORKSHEET
+                $worksheets = [$worksheet1];
+
+                // Change the widths of the columns to be appropriately large for the content in them.
+                foreach ($worksheets as $worksheet) {
+                    foreach ($worksheet->getColumnIterator() as $column) {
+                        $worksheet->getColumnDimension($column->getColumnIndex())->setAutoSize(true);
+                    }
+                }
+                $filename = "Reporte Comercializadores - Periodo " . $id_year . $id_month . ".xlsx";
+                // Set the path to the directory where the file will be saved
+                $directoryPath = public_path('uploads/reports');
+
+                // Ensure the directory exists, if it doesn't create it
+                if (!file_exists($directoryPath)) {
+                    mkdir($directoryPath, 0755, true);
+                }
+                // Set the full file path
+                $filePath = $directoryPath . '/' . $filename;
+                // ensure the file exists. if exists will deleted it
+                if (file_exists($filePath)) {
+                    unlink($filePath);
+                }
+                // Save to file.
+                $writer = new \PhpOffice\PhpSpreadsheet\Writer\Xlsx($mySpreadsheet);
+                $writer->save($filePath);
+
+                // File is save here: public\uploads\reports\Reporte Operadores - Periodo 202302.xlsx
+                return response()->download($filePath);
+                break;
+            case 4:
+                // Reporte Comercializadores - Rango
+                $fecha_inicio = $request->input('fecha_inicio');
+                $fecha_fin = $request->input('fecha_fin');
+                $data = DB::select("SELECT
+                DV.NOMBRE AS DEPARTAMENTO,
+                MV.NOMBRE AS MUNICIPIO,
+                CO.NOMBRE AS COMERCIALIZADOR,
+                FC.FECHA_FACTURA AS FECHA_FACTURA,
+                FC.PERIODO_FACTURA AS PERIODO,
+                FC.VALOR_FACTURA AS VALOR_FACTURA,
+                FC.AJUSTE_FACT AS AJUSTE_FACT,
+                FC.VALOR_RECAUDO AS VALOR_RECAUDO,
+                FC.AJUSTE_RECA AS AJUSTE_RECA,
+                FC.VALOR_ENERGIA AS VALOR_ENERGIA,
+                FC.CUOTA_ENERGIA AS CUOTA_ENERGIA,
+                FC.OTROS_AJUSTES AS OTROS_AJUSTES,
+                FC.VALOR_FAVOR AS VALOR_FAVOR,
+                FC.CONSUMO AS CONSUMO,
+                CASE WHEN FC.ESTADO_FACTURA = 1 THEN 'PAGADA' WHEN FC.ESTADO_FACTURA = 2 THEN 'PENDIENTE ENVIO'
+            END AS ESTADO_FACTURA,
+            CASE WHEN RC.ESTADO_RECAUDO = 1 THEN 'PAGADA' WHEN RC.ESTADO_RECAUDO = 2 THEN 'PENDIENTE ENVIO'
+            END AS ESTADO_RECAUDO,
+            RC.FECHA_PAGO_BITACORA AS 'FECHA RECA. BITACORA'
+            FROM
+                facturacion_comercializadores_2 FC
+            LEFT JOIN recaudo_comercializadores_2 RC ON
+                FC.ID_FACTURACION = RC.ID_FACTURACION,
+                departamentos_visitas_2 DV,
+                municipios_visitas_2 MV,
+                comercializadores_2 CO
+            WHERE
+                FC.ID_COD_DPTO = DV.ID_DEPARTAMENTO AND FC.ID_COD_MPIO = MV.ID_MUNICIPIO AND DV.ID_DEPARTAMENTO = MV.ID_DEPARTAMENTO AND FC.ID_COMERCIALIZADOR = CO.ID_COMERCIALIZADOR
+                AND FC.FECHA_FACTURA BETWEEN ? AND ?
+            ORDER BY
+                DV.NOMBRE, MV.NOMBRE, FC.FECHA_FACTURA
+            DESC", [$fecha_inicio, $fecha_fin]);
+
+                $mySpreadsheet = new \PhpOffice\PhpSpreadsheet\Spreadsheet();
+                // delete the default active sheet
+                $mySpreadsheet->removeSheetByIndex(0);
+                $worksheet1 = new \PhpOffice\PhpSpreadsheet\Worksheet\Worksheet($mySpreadsheet, "Reporte comer - Rango");
+                $mySpreadsheet->addSheet($worksheet1, 0);
+                $data_head = [
+                    'DEPARTAMENTO', 'MUNICIPIO', 'OPERADOR', 'FECHA_FACTURA',
+                    'PERIODO', 'VALOR_FACTURA', 'AJUSTE_FACT', 'VALOR_RECAUDO',
+                    'AJUSTE_RECA', 'VALOR_ENERGIA', 'CUOTA_ENERGIA', 'OTROS_AJUSTES',
+                    'VALOR_FAVOR', 'CONSUMO', 'ESTADO_FACTURA', 'ESTADO RECAUDO', 'FECHA RECA. BITACORA'
+                ];
+                $dataArray = json_decode(json_encode($data), true); // convert object to array
+                $data = array_map(function ($row) {
+                    return array_values($row);
+                }, $dataArray); // transform to 2D array
+                array_unshift($data, $data_head);
+                $worksheet1->fromArray($data, null, 'A1');
+                $worksheets = [$worksheet1];
+
+                // Change the widths of the columns to be appropriately large for the content in them.
+                foreach ($worksheets as $worksheet) {
+                    foreach ($worksheet->getColumnIterator() as $column) {
+                        $worksheet->getColumnDimension($column->getColumnIndex())->setAutoSize(true);
+                    }
+                }
+                $filename = "Reporte Comercializadores - Rango " . $fecha_inicio . " & " . $fecha_fin . ".xlsx";
+                // Set the path to the directory where the file will be saved
+                $directoryPath = public_path('uploads/reports');
+                // Ensure the directory exists, if it doesn't create it
+                if (!file_exists($directoryPath)) {
+                    mkdir($directoryPath, 0755, true);
+                }
+                // set the file path
+                $filePath = $directoryPath . '/' . $filename;
+                // Ensure the file exists. If exists will be deleted id
+                if (file_exists($filePath)) {
+                    unlink($filePath);
+                }
+                // Save to file.
+                $writer = new \PhpOffice\PhpSpreadsheet\Writer\Xlsx($mySpreadsheet);
+                $writer->save($filePath);
+                return response()->download($filePath);
+                break;
         }
-
-
-        $filename = "Reporte Operadores - Periodo " . $id_year . $id_month . ".xlsx";
-        $file2 = public_path($filename);
-        if (file_exists($file2)) {
-            unlink($file2);
-        }
-
-        // Save to file.
-        $writer = new \PhpOffice\PhpSpreadsheet\Writer\Xlsx($mySpreadsheet);
-        $writer->save($filename);
-        // C:\xampp\htdocs\projects\upload-files\public\Reporte Operadores - Periodo 202302.xlsx
-
-        // return response()->download($filename);
-        return response()->download($file2);
-
     }
 
     public function index()
