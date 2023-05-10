@@ -323,38 +323,38 @@ class FileController extends Controller
                 $fecha_inicio = $request->input('fecha_inicio');
                 $fecha_fin = $request->input('fecha_fin');
                 $data = DB::select("SELECT
-                DV.NOMBRE AS DEPARTAMENTO,
-                MV.NOMBRE AS MUNICIPIO,
-                CO.NOMBRE AS COMERCIALIZADOR,
-                FC.FECHA_FACTURA AS FECHA_FACTURA,
-                FC.PERIODO_FACTURA AS PERIODO,
-                FC.VALOR_FACTURA AS VALOR_FACTURA,
-                FC.AJUSTE_FACT AS AJUSTE_FACT,
-                FC.VALOR_RECAUDO AS VALOR_RECAUDO,
-                FC.AJUSTE_RECA AS AJUSTE_RECA,
-                FC.VALOR_ENERGIA AS VALOR_ENERGIA,
-                FC.CUOTA_ENERGIA AS CUOTA_ENERGIA,
-                FC.OTROS_AJUSTES AS OTROS_AJUSTES,
-                FC.VALOR_FAVOR AS VALOR_FAVOR,
-                FC.CONSUMO AS CONSUMO,
-                CASE WHEN FC.ESTADO_FACTURA = 1 THEN 'PAGADA' WHEN FC.ESTADO_FACTURA = 2 THEN 'PENDIENTE ENVIO'
-            END AS ESTADO_FACTURA,
-            CASE WHEN RC.ESTADO_RECAUDO = 1 THEN 'PAGADA' WHEN RC.ESTADO_RECAUDO = 2 THEN 'PENDIENTE ENVIO'
-            END AS ESTADO_RECAUDO,
-            RC.FECHA_PAGO_BITACORA AS 'FECHA RECA. BITACORA'
-            FROM
-                facturacion_comercializadores_2 FC
-            LEFT JOIN recaudo_comercializadores_2 RC ON
-                FC.ID_FACTURACION = RC.ID_FACTURACION,
-                departamentos_visitas_2 DV,
-                municipios_visitas_2 MV,
-                comercializadores_2 CO
-            WHERE
-                FC.ID_COD_DPTO = DV.ID_DEPARTAMENTO AND FC.ID_COD_MPIO = MV.ID_MUNICIPIO AND DV.ID_DEPARTAMENTO = MV.ID_DEPARTAMENTO AND FC.ID_COMERCIALIZADOR = CO.ID_COMERCIALIZADOR
-                AND FC.FECHA_FACTURA BETWEEN ? AND ?
-            ORDER BY
-                DV.NOMBRE, MV.NOMBRE, FC.FECHA_FACTURA
-            DESC", [$fecha_inicio, $fecha_fin]);
+                    DV.NOMBRE AS DEPARTAMENTO,
+                    MV.NOMBRE AS MUNICIPIO,
+                    CO.NOMBRE AS COMERCIALIZADOR,
+                    FC.FECHA_FACTURA AS FECHA_FACTURA,
+                    FC.PERIODO_FACTURA AS PERIODO,
+                    FC.VALOR_FACTURA AS VALOR_FACTURA,
+                    FC.AJUSTE_FACT AS AJUSTE_FACT,
+                    FC.VALOR_RECAUDO AS VALOR_RECAUDO,
+                    FC.AJUSTE_RECA AS AJUSTE_RECA,
+                    FC.VALOR_ENERGIA AS VALOR_ENERGIA,
+                    FC.CUOTA_ENERGIA AS CUOTA_ENERGIA,
+                    FC.OTROS_AJUSTES AS OTROS_AJUSTES,
+                    FC.VALOR_FAVOR AS VALOR_FAVOR,
+                    FC.CONSUMO AS CONSUMO,
+                    CASE WHEN FC.ESTADO_FACTURA = 1 THEN 'PAGADA' WHEN FC.ESTADO_FACTURA = 2 THEN 'PENDIENTE ENVIO'
+                END AS ESTADO_FACTURA,
+                CASE WHEN RC.ESTADO_RECAUDO = 1 THEN 'PAGADA' WHEN RC.ESTADO_RECAUDO = 2 THEN 'PENDIENTE ENVIO'
+                END AS ESTADO_RECAUDO,
+                RC.FECHA_PAGO_BITACORA AS 'FECHA RECA. BITACORA'
+                FROM
+                    facturacion_comercializadores_2 FC
+                LEFT JOIN recaudo_comercializadores_2 RC ON
+                    FC.ID_FACTURACION = RC.ID_FACTURACION,
+                    departamentos_visitas_2 DV,
+                    municipios_visitas_2 MV,
+                    comercializadores_2 CO
+                WHERE
+                    FC.ID_COD_DPTO = DV.ID_DEPARTAMENTO AND FC.ID_COD_MPIO = MV.ID_MUNICIPIO AND DV.ID_DEPARTAMENTO = MV.ID_DEPARTAMENTO AND FC.ID_COMERCIALIZADOR = CO.ID_COMERCIALIZADOR
+                    AND FC.FECHA_FACTURA BETWEEN ? AND ?
+                ORDER BY
+                    DV.NOMBRE, MV.NOMBRE, FC.FECHA_FACTURA
+                DESC", [$fecha_inicio, $fecha_fin]);
 
                 $mySpreadsheet = new \PhpOffice\PhpSpreadsheet\Spreadsheet();
                 // delete the default active sheet
@@ -398,6 +398,12 @@ class FileController extends Controller
                 $writer = new \PhpOffice\PhpSpreadsheet\Writer\Xlsx($mySpreadsheet);
                 $writer->save($filePath);
                 return response()->download($filePath);
+                break;
+            case 5:
+                $id_year = $request->input('id_year');
+                $id_month = $request->input('id_month');
+                $data = DB::select("
+                ");
                 break;
         }
     }

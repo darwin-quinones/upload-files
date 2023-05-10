@@ -171,6 +171,56 @@ export default function Dashboard() {
             })
     };
 
+    const generateReportEspecialesByPeriod = (event) => {
+        event.preventDefault()
+        const id_year = '2023'
+        const id_month = '01'
+        const report_code = 5
+        const filename = "Reporte Cliente Especiales - Periodo " + id_year + id_month + ".xlsx";
+        const data = { id_month: id_month, id_year: id_year, report_code: report_code }
+        fetch(FILE_UPLOAD_BASE_ENDPOINT + '/generar-reportes-excel', {
+                method: 'POST',
+                body: JSON.stringify(data),
+                headers: {
+                    'Content-Type': 'application/json'
+                }
+        })
+        .then(response => {
+            // check if the response was successful
+            if(!response.ok){
+                throw new Error('Network response was not ok')
+            }
+            // parse the response as a blob
+            return response.blob
+        })
+        .then(blob => {
+            // create a download link for the blob
+            const url = window.URL.createObjectURL(new Blob([blob]))
+            const link = document.createElement('a')
+            link.href = url
+            link.setAttribute('download', filename)
+            // trigger the download link
+            link.click()
+            // cleanup the link and object url
+            link.parentNode.removeChild(link)
+            window.revokeObjectURL(url)
+        })
+        .catch(error => {
+            console.error('There was a problem with the fetch operation: ', error)
+        })
+    }
+    const generateReportEspecialesByMunicipality = (event) => {
+        event.preventDefault()
+        console.log('yes')
+    }
+    const generateReportEspecialesContributor = (event) => {
+        event.preventDefault()
+        console.log('yes')
+    }
+    const generateReportEspecialesByRange = (event) => {
+        event.preventDefault()
+        console.log('yes')
+    }
 
 
     return (
@@ -181,6 +231,14 @@ export default function Dashboard() {
             <button type="submit" onClick={generateReportOperatorByDataRange}>Generar Reporte operador por rango</button><br />
             <button type="submit" onClick={generateReportComercializadorByPeriod}>Generar Reporte comercializadores por periodo</button><br />
             <button type="submit" onClick={generateReportComercializadorByDataRange}>Generar Reporte comercializadores por rango</button><br />
+
+            <br></br><hr /><br></br>
+            <button type="submit" onClick={ generateReportEspecialesByPeriod }>Generar reporte especiales por periodo</button><br/>
+            <button type="submit" onClick={ generateReportEspecialesByMunicipality }>Generar reporte especiales por municipio</button><br/>
+            <button type="submit" onClick={ generateReportEspecialesContributor }>Generar reporte especiales por contribuyente</button><br/>
+            <button type="submit" onClick={ generateReportEspecialesByRange }>Generar reporte especiales por rango</button><br/>
+
+
         </div>
 
     );
