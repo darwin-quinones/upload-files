@@ -22,6 +22,7 @@ use App\Models\TipoSubMercado;
 use App\Models\TipoPago;
 use App\Models\TipoEdad;
 use App\Models\Comercializador;
+use App\Models\RecaudoEspecial;
 use App\Models\ConceptosFacturacion;
 use App\Models\Empresa;
 use App\Models\Tarifa;
@@ -402,9 +403,121 @@ class FileController extends Controller
             case 5:
                 $id_year = $request->input('id_year');
                 $id_month = $request->input('id_month');
-                $data = DB::select("
-                ");
+                $data = DB::select("SELECT DV.NOMBRE AS DEPARTAMENTO,
+                    MV.NOMBRE AS MUNICIPIO,
+                    CONT.NOMBRE AS CONTRIBUYENTE,
+                    CONT.NIT_CONTRIBUYENTE AS NIT,
+                    CASE
+                        WHEN FE.ID_TIPO_CLIENTE = 1 THEN 'ANTIGUO'
+                        WHEN FE.ID_TIPO_CLIENTE = 2 THEN 'NUEVO'
+                    END AS TIPO_CLIENTE,
+                    FE.CONSECUTIVO_FACT AS FACTURA,
+                    CASE
+                        WHEN FE.ID_TIPO_FACTURACION = 1 THEN 'CONSUMO'
+                        WHEN FE.ID_TIPO_FACTURACION = 2 THEN 'SALARIOS'
+                        WHEN FE.ID_TIPO_FACTURACION = 3 THEN 'UVT'
+                        WHEN FE.ID_TIPO_FACTURACION = 4 THEN 'COMERCIALES'
+                    END AS TIPO_FACTURACION,
+                    FE.TARIFA AS TARIFA,
+                    FE.VALOR_TARIFA AS VALOR_TARIFA,
+                    FE.VALOR_FACTURA AS VALOR_FACTURA,
+                    FE.FECHA_FACTURA AS FECHA_FACTURA,
+                    FE.FECHA_ENTREGA AS FECHA_ENTREGA,
+                    FE.FECHA_VENCIMIENTO AS FECHA_VENCIMIENTO,
+                    FE.PERIODO_FACTURA AS PERIODO,
+                    CO.NOMBRE AS COMERCIALIZADOR,
+                    CASE
+                        WHEN FE.ID_FACTURADO_POR = 1 THEN 'COMERCIALIZADOR'
+                        WHEN FE.ID_FACTURADO_POR = 2 THEN 'CUENTA DE COBRO'
+                        WHEN FE.ID_FACTURADO_POR = 3 THEN 'RESOLUCION'
+                    END AS FACTURADO_POR,
+                    CASE
+                    WHEN FE.ESTADO_FACTURA = 1 THEN 'ENTREGADO'
+                    WHEN FE.ESTADO_FACTURA = 2 THEN 'PENDIENTE ENVIO'
+                    WHEN FE.ESTADO_FACTURA = 3 THEN 'RECLAMADA'
+                    WHEN FE.ESTADO_FACTURA = 4 THEN 'ANULADA'
+                    END AS ESTADO_FACTURA,
+                    FE.OBSERVACIONES AS OBSERVACIONES,
+                    FE.ID_FACTURACION AS ID_FACTURACION,
+                    FE.VALOR_LIQ_VENCIDAS AS VALOR_LIQ_VENCIDAS
+                    FROM facturacion_especiales_2 FE
+                    INNER JOIN comercializadores_2 CO ON FE.ID_COMERCIALIZADOR = CO.ID_COMERCIALIZADOR,
+                    departamentos_visitas_2 DV,
+                    municipios_visitas_2 MV,
+                    contribuyentes_2 CONT
+                    WHERE FE.ID_CONTRIBUYENTE = CONT.ID_CONTRIBUYENTE
+                    AND FE.ID_COD_DPTO = DV.ID_DEPARTAMENTO
+                    AND FE.ID_COD_MPIO = MV.ID_MUNICIPIO
+                    AND DV.ID_DEPARTAMENTO = MV.ID_DEPARTAMENTO
+                    AND YEAR(FE.FECHA_FACTURA) = ?
+                    AND MONTH(FE.FECHA_FACTURA) = ?
+                    ORDER BY DV.NOMBRE, MV.NOMBRE, FE.FECHA_FACTURA
+                    DESC LIMIT 2", [$id_year, $id_month]);
+                $estado = '';
+                foreach ($data as &$row) {
+
+                    $query_recaudo_especial  = RecaudoEspecial::where('ID_FACTURACION', $row->ID_FACTURACION)->first();
+                    //echo $query_recaudo_especial->VALOR_RECAUDO;
+                    if ($query_recaudo_especial) {
+                        $new_valor_recaudo = array('VALOR_RECAUDO' => $query_recaudo_especial->VALOR_RECAUDO);
+                        $cartera_a_la_fecha = ($row->VALOR_FACTURA - $query_recaudo_especial);
+                        $new_cartera_a_la_fecha = array('CARTERA_A_LA_FECHA' => $cartera_a_la_fecha);
+                        $new_fecha_pago_soporte = array('FECHA_PAGO_SOPORTE' => $query_recaudo_especial->FECHA_PAGO_SOPORTE);
+                        $new_fecha_pago_bitacora = array('FECHA_PAGO_BITACORA' => $query_recaudo_especial->FECHA_PAGO_BITACORA);
+                        switch ($query_recaudo_especial->ESTADO_RECAUDO) {
+                            case '1':
+                                $estado = 'ENTREGADO';
+                                break;
+                            case "2":
+                                $estado = "PENDIENTE ENVIO";
+                                break;
+                            case "3":
+                                $estado = "RECLAMADA";
+                                break;
+                            case "4":
+                                $estado = "PAGADO";
+                                break;
+                            case "5":
+                                $estado = "PAGO PARCIAL";
+                                break;
+                        }
+                        $new_estado_recaudo = array('ESTADO_RECAUDO' => $estado);
+                        $new_observ_recaudo = array('OBSERV_RECADO' => $query_recaudo_especial->OBSERVACIONES);
+                        $array_row = json_decode(json_encode($row), true);
+                        array_splice($array_row, 18, 0, array($new_valor_recaudo));
+                        array_splice($array_row, 19, 0, array($new_cartera_a_la_fecha));
+
+                        array_push($array_row, $new_fecha_pago_soporte, $new_fecha_pago_bitacora, $new_estado_recaudo, $new_observ_recaudo);
+                        $row = (object)$array_row; // Convert the array back to an object
+                    } else{
+
+                        //     CARTERA FECHA
+                        //     CARTERA VENCIDA
+                        //     FECHA RECA. SOPORTE
+                        //     FECHA RECA. BITACORA
+                        //     ESTADO RECAUDO
+                        //     OBSERV. RECAUDO
+                        // 18
+
+                        // convert stdClass object to an array
+                        $array_row = json_decode(json_encode($row), true);
+                        $new_valor_recaudo = array('VALOR_RECAUDO' => 0);
+
+                        $new_cartera_a_la_fecha = array('CARTERA_A_LA_FECHA' => $row->VALOR_FACTURA);
+                        $new_fecha_pago_soporte = array('FECHA_PAGO_SOPORTE' => '');
+                        $new_fecha_pago_bitacora = array('FECHA_PAGO_BITACORA' => '');
+                        $new_estado_recaudo = array('ESTADO_RECAUDO' => '');
+                        $new_observ_recaudo = array('OBSERV_RECADO' => '');
+                        // Add the new element at position 18
+                        array_splice($array_row, 18, 0, array($new_valor_recaudo));
+                        array_splice($array_row, 19, 0, array($new_cartera_a_la_fecha));
+                        array_push($array_row, $new_fecha_pago_soporte, $new_fecha_pago_bitacora, $new_estado_recaudo, $new_observ_recaudo);
+                        $row = (object)$array_row; // Convert the array back to an object
+                    }
+                }
+                var_dump($data);
                 break;
+
         }
     }
 

@@ -185,29 +185,29 @@ export default function Dashboard() {
                     'Content-Type': 'application/json'
                 }
         })
-        .then(response => {
+        //.then(response => {
             // check if the response was successful
-            if(!response.ok){
-                throw new Error('Network response was not ok')
-            }
+            // if(!response.ok){
+            //     throw new Error('Network response was not ok')
+            // }
             // parse the response as a blob
-            return response.blob
-        })
-        .then(blob => {
-            // create a download link for the blob
-            const url = window.URL.createObjectURL(new Blob([blob]))
-            const link = document.createElement('a')
-            link.href = url
-            link.setAttribute('download', filename)
-            // trigger the download link
-            link.click()
-            // cleanup the link and object url
-            link.parentNode.removeChild(link)
-            window.revokeObjectURL(url)
-        })
-        .catch(error => {
-            console.error('There was a problem with the fetch operation: ', error)
-        })
+            //return response.blob
+        //})
+        // .then(blob => {
+        //     // create a download link for the blob
+        //     const url = window.URL.createObjectURL(new Blob([blob]))
+        //     const link = document.createElement('a')
+        //     link.href = url
+        //     link.setAttribute('download', filename)
+        //     // trigger the download link
+        //     link.click()
+        //     // cleanup the link and object url
+        //     link.parentNode.removeChild(link)
+        //     window.revokeObjectURL(url)
+        // })
+        // .catch(error => {
+        //     console.error('There was a problem with the fetch operation: ', error)
+        // })
     }
     const generateReportEspecialesByMunicipality = (event) => {
         event.preventDefault()
