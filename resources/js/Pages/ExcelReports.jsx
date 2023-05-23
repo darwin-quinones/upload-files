@@ -173,8 +173,8 @@ export default function Dashboard() {
 
     const generateReportEspecialesByPeriod = (event) => {
         event.preventDefault()
-        const id_year = '2023'
-        const id_month = '02'
+        const id_year = '2022'
+        const id_month = '12'
         const report_code = 5
         const filename = "Reporte Cliente Especiales - Periodo " + id_year + id_month + ".xlsx";
         //Reporte Cliente Especiales - Periodo 202301.xlsx
@@ -214,7 +214,19 @@ export default function Dashboard() {
     }
     const generateReportEspecialesByMunicipality = (event) => {
         event.preventDefault()
-        console.log('yes')
+        const department = 'BOLIVAR'
+        const municipality = 'MAGANGUE'
+        const id_year = '2022'
+        const id_month = '12'
+        const filename = "Reporte Cliente Especiales " + department + " - " + municipality + " - Periodo " + id_year + id_month+ ".xls";
+        const data = {department: department, municipality: municipality, id_year: id_year, id_month: id_month}
+        fetch(FILE_UPLOAD_BASE_ENDPOINT + '//generar-reportes-excel', {
+            method: 'POST',
+            body: JSON.stringify(data),
+            headers: {
+                'Content-Type': 'application/json'
+            }
+        })
     }
     const generateReportEspecialesContributor = (event) => {
         event.preventDefault()
