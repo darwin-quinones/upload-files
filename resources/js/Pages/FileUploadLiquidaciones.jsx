@@ -49,7 +49,7 @@ export default function Dashboard() {
             method: 'POST',
             body: formData
         };
-        fetch(FILE_UPLOAD_BASE_ENDPOINT + '/file-upload', requestOptions)
+        fetch(FILE_UPLOAD_BASE_ENDPOINT + '/file-upload-liquidaciones', requestOptions)
             .then(async response => {
                 const isJson = response.headers.get('content-type')?.includes('application/json');
                 const data = isJson && await response.json();

@@ -1074,7 +1074,9 @@ class FileController extends Controller
     public function fileUploadLiquidaciones(Request $request)
     {
 
-
+        function array_clear(&$array){
+            $array = [];
+        }
         function clearSpecialCharacters($string)
         {
             return str_replace('?', 'Ñ', utf8_decode(strtoupper(trim(str_replace(array("”", "#", ".", "'", ";", "/", "\\", "`", '"', "'"), "", stripAccents($string))))));
@@ -1132,7 +1134,7 @@ class FileController extends Controller
             // }
             $k = 0;
             $files = $request->files;
-            $cod_operador_red = '11';
+            $cod_operador_red = '8';
             $consultas = array();
             $elementos = array();
             $valores = array();
@@ -1147,7 +1149,7 @@ class FileController extends Controller
 
             // Electrohuila
             $mes_consolidado = 'Junio';
-            $ano_factura = '2022';
+            $ano_factura = '2021';
 
 
 
@@ -1318,54 +1320,52 @@ class FileController extends Controller
                         //$mes_consolidado = 'Agosto';
 
                         $id_tipo_poblacion = 1;
-                        // $ano_factura = '2022';
-                        // $mes_factura = 'JUNIO';
                         $departamento = 'HUILA';
                         $municipio = 'PITALITO';
 
                         $query_ruta = ArchivosCargadosHelectrohuila::where('RUTA', '=', $filename)->first();
                         if ($query_ruta) {
                             $mensajes[] = ["mensaje" => "El archivo ya existe", "file" => $file];
-                            break;
+                            continue;
                         }
                         //INSTANCES
                         $archivos_electrohuila = new ArchivosCargadosHelectrohuila();
                         move_uploaded_file($tempFile, $file);
-                        switch ($mes_consolidado) {
-                            case "Enero":
+                        switch (strtolower($mes_consolidado)) {
+                            case "enero":
                                 $id_mes = 1;
                                 break;
-                            case "Febrero":
+                            case "febrero":
                                 $id_mes = 2;
                                 break;
-                            case "Marzo":
+                            case "marzo":
                                 $id_mes = 3;
                                 break;
-                            case "Abril":
+                            case "abril":
                                 $id_mes = 4;
                                 break;
-                            case "Mayo":
+                            case "mayo":
                                 $id_mes = 5;
                                 break;
-                            case "Junio":
+                            case "junio":
                                 $id_mes = 6;
                                 break;
-                            case "Julio":
+                            case "julio":
                                 $id_mes = 7;
                                 break;
-                            case "Agosto":
+                            case "agosto":
                                 $id_mes = 8;
                                 break;
-                            case "Septiembre":
+                            case "septiembre":
                                 $id_mes = 9;
                                 break;
-                            case "Octubre":
+                            case "octubre":
                                 $id_mes = 10;
                                 break;
-                            case "Noviembre":
+                            case "noviembre":
                                 $id_mes = 11;
                                 break;
-                            case "Diciembre":
+                            case "diciembre":
                                 $id_mes = 12;
                                 break;
                         }
@@ -1373,7 +1373,7 @@ class FileController extends Controller
                         // SE GURADA EL ARCHIVO CATASTRO
                         $archivos_electrohuila->ANO_FACTURA = $ano_factura;
                         $archivos_electrohuila->ID_MES_FACTURA = $id_mes;
-                        $archivos_electrohuila->MES_FACTURA = $mes_consolidado;
+                        $archivos_electrohuila->MES_FACTURA = strtoupper($mes_consolidado);
                         $archivos_electrohuila->DEPARTAMENTO = $departamento;
                         $archivos_electrohuila->MUNICIPIO = $municipio;
                         $archivos_electrohuila->OPERADOR_RED = $operador_red;
@@ -1386,25 +1386,25 @@ class FileController extends Controller
 
 
                         $spreadsheet = $reader->load($file);
-                        // $sheet_base = $spreadsheet->getSheetByName('BASE');
                         $sheet_base = $spreadsheet->getSheet(0);
                         $sheetData = $sheet_base->toArray();
                         //SE ELIMINA LA PRIMERA FILA
                         unset($sheetData[0]);
                         $i = 0;
-                        $total_deuda_corriente = 0;
-                        $total_deuda_cuota = 0;
-                        $total_importe_trans_reca = 0;
-                        $total_facturacion = 0;
-                        $total_valor_recibo = 0;
                         $tabla_electrohuila = '';
+                        $total_valor_consumo = 0;
+                        $total_facturacion = 0;
+                        $total_recaudo= 0;
+                        $total_cartera = 0;
+                        $tablas_cargadas = [];
                         foreach ($sheetData as $row) {
                             $id_cliente = trim($row[6]);
                             $identificacion = trim($row[8]);
-                            $nombre_cliente = clearSpecialCharacters(trim($row[7]));
-                            $direccion_vivienda = clearSpecialCharacters(trim($row[9]));
+                            $nombre_cliente = clearSpecialCharacters(trim(strtoupper($row[7])));
+                            $direccion_vivienda = clearSpecialCharacters(trim(strtoupper($row[9])));
 
                             $nombre_tarifa = strtoupper(str_replace(" ", "_", trim($row[10]))); //ESTRATO_1
+                            //echo 'nombre_tarifa: ' . $nombre_tarifa;
                             $query_tarifa = TarifaElectrohuila::where('NOMBRE', '=', $nombre_tarifa)->first();
                             if (empty($query_tarifa)) {
                                 $tarifa_instance = new TarifaElectrohuila();
@@ -1415,7 +1415,7 @@ class FileController extends Controller
                             }
                             $query_tarifa = TarifaElectrohuila::where('NOMBRE', '=', $nombre_tarifa)->first();
                             $id_tarifa = trim($query_tarifa->ID_TARIFA);
-                            $ubicacion = trim($row[12]);
+                            $ubicacion = trim(strtoupper($row[12]));
                             $descripcion_mpio = strtoupper(trim($row[4]));
                             $posicion_gion = strrpos($descripcion_mpio, '-');
                             $nombre_mpio = substr($descripcion_mpio, $posicion_gion + 1); // PITALITO
@@ -1423,19 +1423,35 @@ class FileController extends Controller
                             $query_municipio = MunicipioVisita::where('NOMBRE', '=', $nombre_mpio)->first();
                             $id_departamento = $query_municipio->ID_DEPARTAMENTO;
                             $id_municipio = $query_municipio->ID_MUNICIPIO;
+
                             $kwh = trim($row[14]);
-                            $kvarh = trim($row(15));
+                            $kwh == '' ? $kwh = 0 : $kwh = $kwh;
+                            $kvarh = trim($row[15]);
+                            $kvarh == '' ? $kvarh = 0 : $kvarh = $kvarh;
                             $valor_consumo = trim(str_replace(",", ".", $row[16]));
+                            $valor_consumo == '' ? $valor_consumo = 0 : $valor_consumo = $valor_consumo;
+                            $total_valor_consumo = $total_valor_consumo + $valor_consumo;
                             $facturacion = trim($row[18]);
+                            $facturacion == '' ? $facturacion = 0 : $facturacion = $facturacion;
                             $total_facturacion = $total_facturacion + $facturacion;
                             $intereses_fact = trim($row[19]);
+                            $intereses_fact == '' ? $intereses_fact = 0 : $intereses_fact = $intereses_fact ;
                             $ajustes_fact = trim($row[20]);
+                            $ajustes_fact == '' ? $ajustes_fact = 0 : $ajustes_fact = $ajustes_fact;
                             $recaudo = trim($row[22]);
+                            $recaudo == '' ? $recaudo = 0 : $recaudo = $recaudo;
+                            $total_recaudo = $total_recaudo + $recaudo;
                             $intereses_reca = trim($row[23]);
+                            $intereses_reca == '' ? $intereses_reca = 0 : $intereses_reca  = $intereses_reca;
                             $ajustes_reca = trim($row[24]);
+                            $ajustes_reca == '' ? $ajustes_reca = 0 : $ajustes_reca = $ajustes_reca;
                             $cartera = trim($row[26]);
+                            $cartera == '' ? $cartera = 0 : $cartera = $cartera;
+                            $total_cartera = $total_cartera + $cartera;
                             $intereses_cartera = trim($row[27]);
+                            $intereses_cartera == '' ? $intereses_cartera = 0 : $intereses_cartera = $intereses_cartera;
                             $ajustes_cartera = trim($row[28]);
+                            $ajustes_cartera == '' ? $ajustes_cartera = 0 : $ajustes_cartera = $ajustes_cartera;
                             $ano_periodo = trim($row[1]);
                             $mes_periodo = trim($row[2]);
 
@@ -1506,22 +1522,41 @@ class FileController extends Controller
                                 'FECHA_CREACION' => $fecha_creacion,
                                 'ID_USUARIO' => $id_usuario,
                             );
-                            // fact_reca_electrohuila_marzo2022_2
-                            $tabla_electrohuila = "fact_reca_electrohuila_'". strtolower($mes_consolidado) . $ano_periodo ."'_2";
+                            $tabla_electrohuila = "fact_reca_electrohuila_". strtolower($mes_consolidado) . $ano_periodo ."_2";
+                            $tablas_cargadas[] = $tabla_electrohuila;
                             DB::table($tabla_electrohuila)->insert($helectrohuila_values);
                             $i++;
                         }
-                        // FINAL FOREACH SHEETDATA
+                        // END FOREACH DATASHEET
+                        $unique_tables = array_unique($tablas_cargadas);
+                        $total_registers = 0;
+                        $query_valor_consumo = 0;
+                        $query_facturacion = 0;
+                        $query_recaudo = 0;
+                        $query_cartera = 0;
+                        $queries = array();
+                        foreach($unique_tables as $table){
+                            $queries [] = DB::table($table)
+                            ->select([
+                                DB::raw('COUNT(*) AS TOTAL'),
+                                DB::raw('SUM(VALOR_CONSUMO) AS TOTAL_VALOR_CONSUMO'),
+                                DB::raw('SUM(FACTURACION) AS TOTAL_FACTURACION'),
+                                DB::raw('SUM(RECAUDO) AS TOTAL_RECAUDO'),
+                                DB::raw('SUM(CARTERA) AS TOTAL_CARTERA')
+                            ])->where('ID_TABLA_RUTA', $id_tabla_ruta_helectrohuila)->get();
+                            $total_registers = $total_registers + $queries[0][0]->TOTAL;
+                            $query_valor_consumo = $query_valor_consumo + $queries[0][0]->TOTAL_VALOR_CONSUMO;
+                            $query_facturacion = $query_facturacion + $queries[0][0]->TOTAL_FACTURACION;
+                            $query_recaudo = $query_recaudo + $queries[0][0]->TOTAL_RECAUDO;
+                            $query_cartera = $query_cartera + $queries[0][0]->TOTAL_CARTERA;
+                            array_clear($queries);
 
-                        // $consultas[] = DB::table($table_catastro)
-                        //     ->select([
-                        //         DB::raw('COUNT(*) AS TOTAL'),
-                        //         DB::raw("SUM(DEUDA_CORRIENTE) AS DEUDA_CORRIENTE"),
-                        //         DB::raw("SUM(DEUDA_CUOTA) AS DEUDA_CUOTA"),
-                        //     ])->where('ID_TABLA_RUTA', '=', $id_tabla_ruta_helectrohuila)->get();
+                        }
 
-                        // $mensajes[] = ['mensaje' => 'Archivo cargado con exito', 'file' => $file];
-                        // $valores[] = ['total_deuda_corriente' => $total_deuda_corriente, 'total_deuda_cuota' => $total_deuda_cuota];
+                        $consultas[] = ['TOTAL' => $total_registers, 'TOTAL_VALOR_CONSUMO' => $query_valor_consumo,
+                        'TOTAL_FACTURACION' => $query_facturacion, 'TOTAL_RECAUDO' => $query_recaudo, 'TOTAL_CARTERA' => $query_cartera];
+                        $mensajes[] = ['mensaje' => 'Archivo cargado con exito', 'file' => $file];
+                        $valores[] = ['total' => $i, 'total_valor_consumo' => $total_valor_consumo, 'total_facturacion' => $total_facturacion, 'total_recaudo' => $total_recaudo, 'total_cartera' => $total_cartera];
 
                         unlink($file);
                         $k++;
