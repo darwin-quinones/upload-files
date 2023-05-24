@@ -182,35 +182,35 @@ export default function Dashboard() {
         //const filename = "Reporte comercializadores - Rango " + fecha_inicio + " & " + fecha_fin + ".xlsx";
         const data = { id_month: id_month, id_year: id_year, report_code: report_code }
         fetch(FILE_UPLOAD_BASE_ENDPOINT + '/generar-reportes-excel', {
-                method: 'POST',
-                body: JSON.stringify(data),
-                headers: {
-                    'Content-Type': 'application/json'
-                }
-        })
-        .then(response => {
-            //check if the response was successful
-            if(!response.ok){
-                throw new Error('Network response was not ok')
+            method: 'POST',
+            body: JSON.stringify(data),
+            headers: {
+                'Content-Type': 'application/json'
             }
-            //parse the response as a blob
-            return response.blob()
         })
-        .then(blob => {
-            // create a download link for the blob
-            const url = window.URL.createObjectURL(new Blob([blob]))
-            const link = document.createElement('a')
-            link.href = url
-            link.setAttribute('download', filename)
-            // trigger the download link
-            link.click()
-            // cleanup the link and object url
-            link.parentNode.removeChild(link)
-            window.revokeObjectURL(url)
-        })
-        .catch(error => {
-            console.error('There was a problem with the fetch operation: ', error)
-        })
+            .then(response => {
+                //check if the response was successful
+                if (!response.ok) {
+                    throw new Error('Network response was not ok')
+                }
+                //parse the response as a blob
+                return response.blob()
+            })
+            .then(blob => {
+                // create a download link for the blob
+                const url = window.URL.createObjectURL(new Blob([blob]))
+                const link = document.createElement('a')
+                link.href = url
+                link.setAttribute('download', filename)
+                // trigger the download link
+                link.click()
+                // cleanup the link and object url
+                link.parentNode.removeChild(link)
+                window.revokeObjectURL(url)
+            })
+            .catch(error => {
+                console.error('There was a problem with the fetch operation: ', error)
+            })
     }
     const generateReportEspecialesByMunicipality = (event) => {
         event.preventDefault()
@@ -218,15 +218,36 @@ export default function Dashboard() {
         const municipality = 'MAGANGUE'
         const id_year = '2022'
         const id_month = '12'
-        const filename = "Reporte Cliente Especiales " + department + " - " + municipality + " - Periodo " + id_year + id_month+ ".xls";
-        const data = {department: department, municipality: municipality, id_year: id_year, id_month: id_month}
-        fetch(FILE_UPLOAD_BASE_ENDPOINT + '//generar-reportes-excel', {
+        const report_code = 6
+        const filename = "Reporte Cliente Especiales " + department + " - " + municipality + " - Periodo " + id_year + id_month + ".xlsx";
+        const data = { department: department, municipality: municipality, id_year: id_year, id_month: id_month, report_code: report_code }
+        fetch(FILE_UPLOAD_BASE_ENDPOINT + '/generar-reportes-excel', {
             method: 'POST',
             body: JSON.stringify(data),
             headers: {
                 'Content-Type': 'application/json'
             }
         })
+            .then((response) => {
+                if (!response.ok) {
+                    throw new Error('Network response was not ok')
+                }
+                return response.blob()
+            })
+            .then((blob) => {
+                // create a new link for the blob
+                const url = window.URL.createObjectURL(new Blob([blob]));
+                const link = document.createElement('a')
+                link.href = url;
+                link.setAttribute('download', filename);
+                document.body.appendChild(link);
+                // trigger the download link
+                link.click();
+                // cleanup the link and the object URL
+                link.parentNode.removeChild(link);
+                window.URL.revokeObjectURL(url);
+            })
+            .catch((error) => console.log('There was an error: ' + error))
     }
     const generateReportEspecialesContributor = (event) => {
         event.preventDefault()
@@ -248,10 +269,10 @@ export default function Dashboard() {
             <button type="submit" onClick={generateReportComercializadorByDataRange}>Generar Reporte comercializadores por rango</button><br />
 
             <br></br><hr /><br></br>
-            <button type="submit" onClick={ generateReportEspecialesByPeriod }>Generar reporte especiales por periodo</button><br/>
-            <button type="submit" onClick={ generateReportEspecialesByMunicipality }>Generar reporte especiales por municipio</button><br/>
-            <button type="submit" onClick={ generateReportEspecialesContributor }>Generar reporte especiales por contribuyente</button><br/>
-            <button type="submit" onClick={ generateReportEspecialesByRange }>Generar reporte especiales por rango</button><br/>
+            <button type="submit" onClick={generateReportEspecialesByPeriod}>Generar reporte especiales por periodo</button><br />
+            <button type="submit" onClick={generateReportEspecialesByMunicipality}>Generar reporte especiales por municipio</button><br />
+            <button type="submit" onClick={generateReportEspecialesContributor}>Generar reporte especiales por contribuyente</button><br />
+            <button type="submit" onClick={generateReportEspecialesByRange}>Generar reporte especiales por rango</button><br />
 
 
         </div>

@@ -492,7 +492,7 @@ class FileController extends Controller
                         $row->OBSERV_RECADO = $query_recaudo_especial->OBSERVACIONES;
                     } else {
                         $row->VALOR_RECAUDO = 0;
-                        $row->CARTERA_A_LA_FECHA = $row->VALOR_FACTURA - 0 ;
+                        $row->CARTERA_A_LA_FECHA = $row->VALOR_FACTURA - 0;
                         $row->FECHA_PAGO_SOPORTE = '';
                         $row->FECHA_PAGO_BITACORA = '';
                         $row->ESTADO_RECAUDO = '';
@@ -538,10 +538,173 @@ class FileController extends Controller
 
                 // set the path of thr directory where the file will be uploaded
                 $directoryPath = public_path('uploads/reports');
+                if (!file_exists($directoryPath)) {
+                    mkdir($directoryPath, 0755, true);
+                }
+                $filePath = $directoryPath . '/' . $filename;
+                if (file_exists($filePath)) {
+                    unlink($filePath);
+                }
+                // save to file
+                $writer = new \PhpOffice\PhpSpreadsheet\Writer\Xlsx($mySpreadsheet);
+                $writer->save($filePath);
+                return response()->download($filePath);
+                break;
+            case 6:
+                // Reporte Cliente Especiales department municipality - period
+                $id_year = $request->input('id_year');
+                $id_month = $request->input('id_month');
+                $department = $request->input('department');
+                $municipality = $request->input('municipality');
+                $query_municipality = MunicipioVisita::where('NOMBRE', $municipality)->first();
+                $id_municipality = $query_municipality->ID_MUNICIPIO;
+                $id_department = $query_municipality->ID_DEPARTAMENTO;
+                $data = DB::select("SELECT DV.NOMBRE AS DEPARTAMENTO,
+                MV.NOMBRE AS MUNICIPIO,
+                CONT.NOMBRE AS CONTRIBUYENTE,
+                CONT.NIT_CONTRIBUYENTE AS NIT,
+                CASE
+                    WHEN FE.ID_TIPO_CLIENTE = 1 THEN 'ANTIGUO'
+                    WHEN FE.ID_TIPO_CLIENTE = 2 THEN 'NUEVO'
+                END AS TIPO_CLIENTE,
+                FE.CONSECUTIVO_FACT AS FACTURA,
+
+                CASE
+                    WHEN FE.ID_TIPO_FACTURACION = 1 THEN 'CONSUMO'
+                    WHEN FE.ID_TIPO_FACTURACION = 2 THEN 'SALARIOS'
+                    WHEN FE.ID_TIPO_FACTURACION = 3 THEN 'UVT'
+                    WHEN FE.ID_TIPO_FACTURACION = 4 THEN 'COMERCIAL'
+                END AS TIPO_FACTURACION,
+                FE.TARIFA AS TARIFA,
+                FE.VALOR_TARIFA AS VALOR_TARIFA,
+                FE.VALOR_FACTURA AS VALOR_FACTURA,
+                FE.FECHA_FACTURA AS FECHA_FACTURA,
+                FE.FECHA_ENTREGA AS FECHA_ENTREGA,
+                FE.FECHA_VENCIMIENTO AS FECHA_VENCIMIENTO,
+                FE.PERIODO_FACTURA AS PERIODO,
+                CO.NOMBRE AS COMERCIALIZADOR,
+                CASE
+                    WHEN FE.ID_FACTURADO_POR = 1 THEN 'COMERCIALIZADOR'
+                    WHEN FE.ID_FACTURADO_POR = 2 THEN 'CUENTA DE COBRO'
+                    WHEN FE.ID_FACTURADO_POR = 3 THEN 'RESOLUCION'
+                END AS FACTURADO_POR,
+                CASE
+                    WHEN FE.ESTADO_FACTURA = 1 THEN 'ENTREGADO'
+                    WHEN FE.ESTADO_FACTURA = 2 THEN 'PENDIENTE ENVIO'
+                    WHEN FE.ESTADO_FACTURA = 3 THEN 'RECLAMADA'
+                    WHEN FE.ESTADO_FACTURA = 4 THEN 'ANULADA'
+                END AS ESTADO_FACTURA,
+                FE.OBSERVACIONES AS OBSERVACIONES,
+                0 AS VALOR_RECAUDO,
+                0 AS CARTERA_A_LA_FECHA,
+                FE.ID_FACTURACION AS ID_FACTURACION,
+                FE.VALOR_LIQ_VENCIDAS AS VALOR_LIQ_VENCIDAS,
+                '' AS FECHA_PAGO_SOPORTE,
+                '' AS FECHA_PAGO_BITACORA,
+                '' AS ESTADO_RECAUDO,
+                '' AS OBSERV_RECAUDO
+                    FROM facturacion_especiales_2 FE
+                    INNER JOIN comercializadores_2 CO ON FE.ID_COMERCIALIZADOR = CO.ID_COMERCIALIZADOR,
+                    departamentos_visitas_2 DV,
+                    municipios_visitas_2 MV,
+                    contribuyentes_2 CONT
+                    WHERE FE.ID_CONTRIBUYENTE = CONT.ID_CONTRIBUYENTE
+                    AND FE.ID_COD_DPTO = DV.ID_DEPARTAMENTO
+                    AND FE.ID_COD_MPIO = MV.ID_MUNICIPIO
+                    AND DV.ID_DEPARTAMENTO = MV.ID_DEPARTAMENTO
+                    AND YEAR(FE.FECHA_FACTURA) = ?
+                    AND MONTH(FE.FECHA_FACTURA) = ?
+                    AND MV.ID_DEPARTAMENTO = ?
+                    AND MV.ID_MUNICIPIO = ?
+                    ORDER BY DV.NOMBRE, MV.NOMBRE, FE.FECHA_FACTURA DESC", [$id_year, $id_month, $id_department, $id_municipality]);
+
+                /// REBUILD  DATA
+                $estado = '';
+                // &$row - is used to modify the original data array
+                foreach ($data as &$row) {
+                    $query_recaudo_especial = RecaudoEspecial::where('ID_FACTURACION', $row->ID_FACTURACION)->first();
+                    if ($query_recaudo_especial) {
+                        switch ($query_recaudo_especial->ESTADO_RECAUDO) {
+                            case "1":
+                                $estado = "ENTREGADO";
+                                break;
+                            case "2":
+                                $estado = "PENDIENTE ENVIO";
+                                break;
+                            case "3":
+                                $estado = "RECLAMADA";
+                                break;
+                            case "4":
+                                $estado = "PAGADO";
+                                break;
+                            case "5":
+                                $estado = "PAGO PARCIAL";
+                                break;
+                        }
+
+                        $row->VALOR_RECAUDO = $query_recaudo_especial->VALOR_RECAUDO;
+                        $cartera_a_la_fecha = $row->VALOR_FACTURA - $query_recaudo_especial->VALOR_RECAUDO;
+                        $row->CARTERA_A_LA_FECHA = $cartera_a_la_fecha;
+                        $row->FECHA_PAGO_SOPORTE = $query_recaudo_especial->FECHA_PAGO_SOPORTE;
+                        $row->FECHA_PAGO_BITACORA = $query_recaudo_especial->FECHA_PAGO_BITACORA;
+                        $row->ESTADO_RECAUDO = $estado;
+                        $row->OBSERV_RECADO = $query_recaudo_especial->OBSERVACIONES;
+                    } else {
+                        $row->VALOR_RECAUDO = 0;
+                        $row->CARTERA_A_LA_FECHA = $row->VALOR_FACTURA - 0;
+                        $row->FECHA_PAGO_SOPORTE = '';
+                        $row->FECHA_PAGO_BITACORA = '';
+                        $row->ESTADO_RECAUDO = '';
+                        $row->OBSERV_RECADO = '';
+                    }
+                    unset($row->ID_FACTURACION);
+                }
+                // END FOREACH DATA
+
+                $mySpreadsheet = new \PhpOffice\PhpSpreadsheet\Spreadsheet();
+                // delete the default active sheet
+                $mySpreadsheet->removeSheetByIndex(0);
+                // Create "sheet name" tab as the first worksheet
+                $worksheet_name = 'Reporte Cliente Especiales ' . substr(strtoupper($department), 0, 4);
+                $worksheet1 = new \PhpOffice\PhpSpreadsheet\Worksheet\Worksheet($mySpreadsheet, $worksheet_name);
+                $mySpreadsheet->addSheet($worksheet1);
+
+                $data_head = [
+                    'DEPARTAMENTO', 'MUNICIPIO', 'CONTRIBUYENTE',
+                    'NIT', 'TIPO_CLIENTE', 'FACTURA', 'TIPO_FACT',
+                    'TARIFA', 'VALOR_TARIFA', 'VALOR_FACTURA', 'FECHA FACTURA',
+                    'FECHA ENTREGA', 'FECHA VENCIMIENTO', 'PERIODO', 'COMERCIALIZADOR',
+                    'FACTURADO POR', 'ESTADO FACTURA', 'OBSERV. FACTURA', 'VALOR RECAUDO',
+                    'CARTERA A LA FECHA', 'CARTERA VENCIDA', 'FECHA RECA SOPORTE',
+                    'FECHA RECA BITACORA', 'ESTADO RECAUDO', 'OBSERV RECAUDO'
+                ];
+                // transform to 2D array
+                $dataArray = json_decode(json_encode($data), true);
+                $data = array_map(function ($row){
+                    return array_values((array) $row);
+                }, $dataArray);
+                // add header in the first position
+                array_unshift($data, $data_head);
+                // fill worksheet
+                $worksheet1->fromArray($data, null, 'A1');
+                $worksheets = [$worksheet1];
+
+                // Change the widths of the columns to be appropriately large
+                // for the content in them
+                foreach($worksheets as $worksheet){
+                    foreach($worksheet->getColumnIterator() as $column){
+                        $worksheet->getColumnDimension($column->getColumnIndex())->setAutoSize(true);
+                    }
+                }
+
+                $filename = "Reporte Cliente Especiales " . ucfirst($department). " - ". ucfirst($municipality) . " - Periodo " . $id_year  . $id_month . ".xlsx";
+
+                // set the path of the directory where the file will be uploaded
+                $directoryPath = public_path('uploads/reports');
                 if(!file_exists($directoryPath)){
                     mkdir($directoryPath, 0755, true);
                 }
-                $filePath = $directoryPath . '/'. $filename;
+                $filePath = $directoryPath . '/' . $filename;
                 if(file_exists($filePath)){
                     unlink($filePath);
                 }
@@ -1074,7 +1237,8 @@ class FileController extends Controller
     public function fileUploadLiquidaciones(Request $request)
     {
 
-        function array_clear(&$array){
+        function array_clear(&$array)
+        {
             $array = [];
         }
         function clearSpecialCharacters($string)
@@ -1394,7 +1558,7 @@ class FileController extends Controller
                         $tabla_electrohuila = '';
                         $total_valor_consumo = 0;
                         $total_facturacion = 0;
-                        $total_recaudo= 0;
+                        $total_recaudo = 0;
                         $total_cartera = 0;
                         $tablas_cargadas = [];
                         foreach ($sheetData as $row) {
@@ -1435,7 +1599,7 @@ class FileController extends Controller
                             $facturacion == '' ? $facturacion = 0 : $facturacion = $facturacion;
                             $total_facturacion = $total_facturacion + $facturacion;
                             $intereses_fact = trim($row[19]);
-                            $intereses_fact == '' ? $intereses_fact = 0 : $intereses_fact = $intereses_fact ;
+                            $intereses_fact == '' ? $intereses_fact = 0 : $intereses_fact = $intereses_fact;
                             $ajustes_fact = trim($row[20]);
                             $ajustes_fact == '' ? $ajustes_fact = 0 : $ajustes_fact = $ajustes_fact;
                             $recaudo = trim($row[22]);
@@ -1522,7 +1686,7 @@ class FileController extends Controller
                                 'FECHA_CREACION' => $fecha_creacion,
                                 'ID_USUARIO' => $id_usuario,
                             );
-                            $tabla_electrohuila = "fact_reca_electrohuila_". strtolower($mes_consolidado) . $ano_periodo ."_2";
+                            $tabla_electrohuila = "fact_reca_electrohuila_" . strtolower($mes_consolidado) . $ano_periodo . "_2";
                             $tablas_cargadas[] = $tabla_electrohuila;
                             DB::table($tabla_electrohuila)->insert($helectrohuila_values);
                             $i++;
@@ -1535,26 +1699,27 @@ class FileController extends Controller
                         $query_recaudo = 0;
                         $query_cartera = 0;
                         $queries = array();
-                        foreach($unique_tables as $table){
-                            $queries [] = DB::table($table)
-                            ->select([
-                                DB::raw('COUNT(*) AS TOTAL'),
-                                DB::raw('SUM(VALOR_CONSUMO) AS TOTAL_VALOR_CONSUMO'),
-                                DB::raw('SUM(FACTURACION) AS TOTAL_FACTURACION'),
-                                DB::raw('SUM(RECAUDO) AS TOTAL_RECAUDO'),
-                                DB::raw('SUM(CARTERA) AS TOTAL_CARTERA')
-                            ])->where('ID_TABLA_RUTA', $id_tabla_ruta_helectrohuila)->get();
+                        foreach ($unique_tables as $table) {
+                            $queries[] = DB::table($table)
+                                ->select([
+                                    DB::raw('COUNT(*) AS TOTAL'),
+                                    DB::raw('SUM(VALOR_CONSUMO) AS TOTAL_VALOR_CONSUMO'),
+                                    DB::raw('SUM(FACTURACION) AS TOTAL_FACTURACION'),
+                                    DB::raw('SUM(RECAUDO) AS TOTAL_RECAUDO'),
+                                    DB::raw('SUM(CARTERA) AS TOTAL_CARTERA')
+                                ])->where('ID_TABLA_RUTA', $id_tabla_ruta_helectrohuila)->get();
                             $total_registers = $total_registers + $queries[0][0]->TOTAL;
                             $query_valor_consumo = $query_valor_consumo + $queries[0][0]->TOTAL_VALOR_CONSUMO;
                             $query_facturacion = $query_facturacion + $queries[0][0]->TOTAL_FACTURACION;
                             $query_recaudo = $query_recaudo + $queries[0][0]->TOTAL_RECAUDO;
                             $query_cartera = $query_cartera + $queries[0][0]->TOTAL_CARTERA;
                             array_clear($queries);
-
                         }
 
-                        $consultas[] = ['TOTAL' => $total_registers, 'TOTAL_VALOR_CONSUMO' => $query_valor_consumo,
-                        'TOTAL_FACTURACION' => $query_facturacion, 'TOTAL_RECAUDO' => $query_recaudo, 'TOTAL_CARTERA' => $query_cartera];
+                        $consultas[] = [
+                            'TOTAL' => $total_registers, 'TOTAL_VALOR_CONSUMO' => $query_valor_consumo,
+                            'TOTAL_FACTURACION' => $query_facturacion, 'TOTAL_RECAUDO' => $query_recaudo, 'TOTAL_CARTERA' => $query_cartera
+                        ];
                         $mensajes[] = ['mensaje' => 'Archivo cargado con exito', 'file' => $file];
                         $valores[] = ['total' => $i, 'total_valor_consumo' => $total_valor_consumo, 'total_facturacion' => $total_facturacion, 'total_recaudo' => $total_recaudo, 'total_cartera' => $total_cartera];
 
