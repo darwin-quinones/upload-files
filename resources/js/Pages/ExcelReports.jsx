@@ -295,7 +295,43 @@ export default function Dashboard() {
     }
     const generateReportEspecialesByRange = (event) => {
         event.preventDefault()
-        console.log('yes')
+
+        const start_date = '2022-09-01'
+        const end_date = '2022-12-31'
+        const report_code = 8
+        const filename =  "Reporte Cliente Especiales - Rango " + start_date + " & " + end_date + ".xlsx";
+        const data = {start_date: start_date, end_date: end_date, report_code: report_code}
+
+        fetch(FILE_UPLOAD_BASE_ENDPOINT + '/generar-reportes-excel', {
+            method: 'POST',
+            body:  JSON.stringify(data),
+            headers: {
+                'Content-Type': 'application/json'
+            }
+        })
+            .then((response) =>{
+                if(!response.ok){
+                    throw new Error('The response was not ok')
+                }
+                return response.blob();
+            })
+            .then(blob => {
+                // create a download link for the blob
+                const url = window.URL.createObjectURL(new Blob([blob]))
+                const link = document.createElement('a')
+                link.href = url
+                link.setAttribute('download', filename)
+                document.body.appendChild(link)
+                // trigger the download link
+                link.click()
+                // cleanup the link and object URL
+                link.parentNode.removeChild(link)
+                window.URL.revokeObjectURL(url)
+            })
+            .catch((error) => {
+                alert(`Something went wrong :${error}`)
+            })
+            .finally(() => console.log('Terminado exitosamente'))
     }
 
 
