@@ -1054,6 +1054,46 @@ class FileController extends Controller
                 // File is save here: public\uploads\reports\Reporte Operadores - Periodo 202302.xlsx
                 return response()->download($filePath)->deleteFileAfterSend(true);
                 break;
+            case 9:
+                $period = $request->input('period');
+
+                $data = DB::select("SELECT DV.NOMBRE AS DEPARTAMENTO,
+                MV.NOMBRE AS MUNICIPIO,
+                FM.CONSECUTIVO_FACT AS FACTURA,
+                FM.VALOR_FACTURA AS VALOR_FACTURA,
+                FM.FECHA_FACTURA AS FECHA_FACTURA,
+                FM.FECHA_ENTREGA AS FECHA_ENTREGA,
+                FM.FECHA_VENCIMIENTO AS FECHA_VENCIMIENTO,
+                FM.PERIODO_FACTURA AS PERIODO,
+                CASE
+                    WHEN FM.ESTADO_FACTURA = 1 THEN 'ENTREGADO'
+                    WHEN FM.ESTADO_FACTURA = 2 THEN 'PENDIENTE ENVIO'
+                    WHEN FM.ESTADO_FACTURA = 3 THEN 'RECLAMADA'
+                    WHEN FM.ESTADO_FACTURA = 6 THEN 'PAGADO ACUERDO'
+                END AS ESTADO_FACTURA,
+                FM.ID_FACTURACION AS ID_FACTURACION,
+                FM.OBSERVACIONES AS OBSERVACIONES,
+                0 AS VALOR_RECAUDO,
+                FM.NO_CC_VENCIDAS AS CC_VENCIDAS,
+                '' AS FECHA_RECA_BITACORA,
+                '' AS FECHA_CREACION_RECA,
+                '' AS ESTADO_RECAUDO,
+                '' AS OBSERV_RECA
+                FROM facturacion_municipales_2 FM,
+                   departamentos_visitas_2 DV,
+                   municipios_visitas_2 MV
+                WHERE FM.ID_COD_DPTO = DV.ID_DEPARTAMENTO
+                AND FM.ID_COD_MPIO = MV.ID_MUNICIPIO
+                AND DV.ID_DEPARTAMENTO = MV.ID_DEPARTAMENTO
+                AND FM.PERIODO_FACTURA = ?
+                ORDER BY DV.NOMBRE, MV.NOMBRE, FM.FECHA_FACTURA DESC
+                ", [$period]);
+
+                foreach($data as $row){
+                    $query_recaudo = DB::table('recaudo_municipales_2')->where('ID_FACTURACION', $row->ID_FACTURACION)->get();
+
+                }
+                break;
         }
     }
 
