@@ -903,6 +903,16 @@ class FileController extends Controller
                 FE.VALOR_TARIFA AS VALOR_TARIFA,
                 FE.VALOR_FACTURA AS VALOR_FACTURA,
                 FE.FECHA_FACTURA AS FECHA_FACTURA,
+                DAY(FE.FECHA_FACTURA) AS DIA_FACTURA,
+                MONTH(FE.FECHA_FACTURA) AS MES_FACTURA,
+                YEAR(FE.FECHA_FACTURA) AS ANO_FACTURA,
+                DATEDIFF(CURDATE(), FE.FECHA_FACTURA) AS DIA_MORA,
+                CASE
+                    WHEN DATEDIFF(CURDATE(), FE.FECHA_FACTURA) > 30 AND DATEDIFF(CURDATE(), FE.FECHA_FACTURA) <= 60 THEN 'MAYOR QUE 30 DIAS'
+                    WHEN DATEDIFF(CURDATE(), FE.FECHA_FACTURA) > 60 AND DATEDIFF(CURDATE(), FE.FECHA_FACTURA) <= 90 THEN 'MAYOR QUE 60 DIAS'
+                    WHEN DATEDIFF(CURDATE(), FE.FECHA_FACTURA) > 90 THEN 'MAYOR QUE 90 DIAS'
+                    ELSE 'AL DIA'
+		        END AS EDAD_CARTERA,
                 FE.FECHA_ENTREGA AS FECHA_ENTREGA,
                 FE.FECHA_VENCIMIENTO AS FECHA_VENCIMIENTO,
                 FE.PERIODO_FACTURA AS PERIODO,
@@ -918,13 +928,16 @@ class FileController extends Controller
                     WHEN FE.ESTADO_FACTURA = 3 THEN 'RECLAMADA'
                     WHEN FE.ESTADO_FACTURA = 4 THEN 'ANULADA'
                 END AS ESTADO_FACTURA,
-                FE.OBSERVACIONES AS OBSERVACIONES,
+                FE.OBSERVACIONES AS OBSERVACION_FACT,
                 0 AS VALOR_RECAUDO,
                 0 AS CARTERA_A_LA_FECHA,
                 FE.ID_FACTURACION AS ID_FACTURACION,
                 FE.VALOR_LIQ_VENCIDAS AS VALOR_LIQ_VENCIDAS,
                 '' AS FECHA_PAGO_SOPORTE,
                 '' AS FECHA_PAGO_BITACORA,
+                '' AS DIA_RECA_BITA,
+                '' AS MES_RECA_BITA,
+                '' AS ANO_RECA_BITA,
                 '' AS ESTADO_RECAUDO,
                 '' AS OBSERV_RECAUDO
                     FROM facturacion_especiales_2 FE
@@ -968,6 +981,9 @@ class FileController extends Controller
                         $row->CARTERA_A_LA_FECHA = $cartera_a_la_fecha;
                         $row->FECHA_PAGO_SOPORTE = $query_recaudo_especial->FECHA_PAGO_SOPORTE;
                         $row->FECHA_PAGO_BITACORA = $query_recaudo_especial->FECHA_PAGO_BITACORA;
+                        $row->DIA_RECA_BITA = (int)substr($query_recaudo_especial->FECHA_PAGO_BITACORA, 8, 2);
+                        $row->MES_RECA_BITA = (int)substr($query_recaudo_especial->FECHA_PAGO_BITACORA, 5, 2);
+                        $row->ANO_RECA_BITA = (int)substr($query_recaudo_especial->FECHA_PAGO_BITACORA, 0, 4);
                         $row->ESTADO_RECAUDO = $estado;
                         $row->OBSERV_RECADO = $query_recaudo_especial->OBSERVACIONES;
                     } else {
@@ -992,10 +1008,12 @@ class FileController extends Controller
                     'DEPARTAMENTO', 'MUNICIPIO', 'CONTRIBUYENTE',
                     'NIT', 'TIPO_CLIENTE', 'FACTURA', 'TIPO_FACT',
                     'TARIFA', 'VALOR_TARIFA', 'VALOR_FACTURA', 'FECHA FACTURA',
+                    'DIA FACTURA', 'MES FACTURA', 'ANO FACTURA', 'DIA MORA', 'EDAD CARTERA',
                     'FECHA ENTREGA', 'FECHA VENCIMIENTO', 'PERIODO', 'COMERCIALIZADOR',
                     'FACTURADO POR', 'ESTADO FACTURA', 'OBSERV. FACTURA', 'VALOR RECAUDO',
                     'CARTERA A LA FECHA', 'CARTERA VENCIDA', 'FECHA RECA SOPORTE',
-                    'FECHA RECA BITACORA', 'ESTADO RECAUDO', 'OBSERV RECAUDO'
+                    'FECHA RECA BITACORA', 'DIA RECA. BITACORA', 'MES RECA. BITACORA',
+                    'ANO RECA. BITACORA', 'ESTADO RECAUDO', 'OBSERV RECAUDO'
                 ];
 
                 // transform to 2D array

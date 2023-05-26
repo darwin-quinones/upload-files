@@ -7,8 +7,8 @@ export default function Dashboard() {
 
     const generateReportOperatorByPeriod = (event) => {
         event.preventDefault();
-        const id_year = '2023';
-        const id_month = '01';
+        const id_year = '2022';
+        const id_month = '11';
         const report_code = 1;
         const filename = "Reporte Operadores - Periodo " + id_year + id_month + ".xlsx";
 
@@ -51,8 +51,8 @@ export default function Dashboard() {
 
     const generateReportOperatorByDataRange = (event) => {
         event.preventDefault();
-        const fecha_inicio = '2022-11-01';
-        const fecha_fin = '2023-05-08';
+        const fecha_inicio = '2022-06-01';
+        const fecha_fin = '2022-12-31';
         const report_code = 2;
         const filename = "Reporte Operadores - Rango " + fecha_inicio + " & " + fecha_fin + ".xlsx";
         const data = { fecha_inicio: fecha_inicio, fecha_fin: fecha_fin, report_code: report_code }
@@ -90,8 +90,8 @@ export default function Dashboard() {
     };
     const generateReportComercializadorByPeriod = (event) => {
         event.preventDefault();
-        const id_year = '2023';
-        const id_month = '02';
+        const id_year = '2022';
+        const id_month = '09';
         const report_code = 3;
         const filename = "Reporte Comercializadores - Periodo " + id_year + id_month + ".xlsx";
 
@@ -133,8 +133,8 @@ export default function Dashboard() {
     };
     const generateReportComercializadorByDataRange = (event) => {
         event.preventDefault();
-        const fecha_inicio = '2023-01-01';
-        const fecha_fin = '2023-05-08';
+        const fecha_inicio = '2022-06-01';
+        const fecha_fin = '2022-12-31';
         const report_code = 4;
         const filename = "Reporte comercializadores - Rango " + fecha_inicio + " & " + fecha_fin + ".xlsx";
         const data = { fecha_inicio: fecha_inicio, fecha_fin: fecha_fin, report_code: report_code }
@@ -174,7 +174,7 @@ export default function Dashboard() {
     const generateReportEspecialesByPeriod = (event) => {
         event.preventDefault()
         const id_year = '2022'
-        const id_month = '12'
+        const id_month = '08'
         const report_code = 5
         const filename = "Reporte Cliente Especiales - Periodo " + id_year + id_month + ".xlsx";
         //Reporte Cliente Especiales - Periodo 202301.xlsx
@@ -214,10 +214,10 @@ export default function Dashboard() {
     }
     const generateReportEspecialesByMunicipality = (event) => {
         event.preventDefault()
-        const department = 'BOLIVAR'
-        const municipality = 'TURBACO'
-        const id_year = '2023'
-        const id_month = '01'
+        const department = 'GUAJIRA'
+        const municipality = 'RIOHACHA'
+        const id_year = '2022'
+        const id_month = '12'
         const report_code = 6
         const filename = "Reporte Cliente Especiales " + department + " - " + municipality + " - Periodo " + id_year + id_month + ".xlsx";
         const data = { department: department, municipality: municipality, id_year: id_year, id_month: id_month, report_code: report_code }
@@ -255,7 +255,7 @@ export default function Dashboard() {
         const contributor = 'AGUAS DE CARTAGENA S.A. E.S.P. - DOLORES'
         const id_contributor = '29'
         const id_year = '2022'
-        const id_month = '11'
+        const id_month = '12'
         const report_code = 7
         const filename =  "Reporte Cliente Especiales " + contributor + " - Periodo " + id_year + id_month + ".xlsx";
         const data = {report_code: report_code, id_contributor: id_contributor, id_year: id_year, id_month: id_month}
@@ -296,8 +296,8 @@ export default function Dashboard() {
     const generateReportEspecialesByRange = (event) => {
         event.preventDefault()
 
-        const start_date = '2022-09-01'
-        const end_date = '2022-12-31'
+        const start_date = '2022-06-01'
+        const end_date = '2022-06-30'
         const report_code = 8
         const filename =  "Reporte Cliente Especiales - Rango " + start_date + " & " + end_date + ".xlsx";
         const data = {start_date: start_date, end_date: end_date, report_code: report_code}
