@@ -334,14 +334,14 @@ export default function Dashboard() {
             .finally(() => console.log('Terminado exitosamente'))
     }
 
-    const generateReportMunicipalityByPeriodo = (event) => {
+    const generateReportMunicipalityByPeriod = (event) => {
         event.preventDefault()
         const id_year = '2022'
-        const id_month = '12'
+        const id_month = '11'
         const period = id_year + id_month
         const report_code = 9
         const data = {period, report_code}
-        const filename = "Reporte Aportes Municipales - Periodo " + id_year + id_month + ".xlsx";
+        const filename = "Reporte Aportes Municipales - Periodo " + period + ".xlsx";
 
         fetch(FILE_UPLOAD_BASE_ENDPOINT + '/generar-reportes-excel', {
             method: 'POST',
@@ -372,10 +372,78 @@ export default function Dashboard() {
         .catch((error) => alert(error.message))
     }
     const generateReportMunicipalityByMunipality = (event) => {
+        event.preventDefault()
+        const department = 'GUAJIRA'
+        const municipality = 'SAN JUAN DEL CESAR'
+        const id_year = '2022'
+        const id_month = '08'
+        const report_code = 10
+        const data = {report_code, id_month, id_year, municipality, department}
+        const filename = "Reporte Aportes Municipales "+ department +" - " + municipality +" - Periodo "+ id_year + id_month +".xlsx";
 
+        fetch(FILE_UPLOAD_BASE_ENDPOINT + '/generar-reportes-excel', {
+            method: 'POST',
+            body: JSON.stringify(data),
+            headers: {
+                'Content-Type': 'application/json'
+            }
+        })
+        .then((response) => {
+            if(!response.ok){
+                throw new Error('Response was not ok')
+            }
+            return response.blob()
+        })
+        .then((blob) => {
+            // crate a download link for the blob
+            const url = window.URL.createObjectURL(new Blob([blob]));
+            const link = document.createElement('a');
+            link.href = url;
+            link.setAttribute('download', filename)
+            document.body.appendChild(link);
+            // trigger download link
+            link.click();
+            // cleapup link and object url
+            link.parentNode.removeChild(link);
+            window.URL.revokeObjectURL(url);
+        })
+        .catch((error) => alert(error.message))
     }
     const generateReportMunicipalityByRange = (event) => {
+        event.preventDefault()
+        const start_date = '2022-02-01';
+        const end_date = '2022-07-31';
+        const report_code = 11
+        const data = {report_code, start_date, end_date}
+        const filename = "Reporte Aportes Municipales - Rango " + start_date +" & " + end_date + ".xlsx";
 
+        fetch(FILE_UPLOAD_BASE_ENDPOINT + '/generar-reportes-excel', {
+            method: 'POST',
+            body: JSON.stringify(data),
+            headers: {
+                'Content-Type': 'application/json'
+            }
+        })
+        .then((response) => {
+            if(!response.ok){
+                throw new Error('Response was not ok')
+            }
+            return response.blob()
+        })
+        .then((blob) => {
+            // crate a download link for the blob
+            const url = window.URL.createObjectURL(new Blob([blob]));
+            const link = document.createElement('a');
+            link.href = url;
+            link.setAttribute('download', filename)
+            document.body.appendChild(link);
+            // trigger download link
+            link.click();
+            // cleapup link and object url
+            link.parentNode.removeChild(link);
+            window.URL.revokeObjectURL(url);
+        })
+        .catch((error) => alert(error.message))
     }
 
     return (
@@ -394,9 +462,9 @@ export default function Dashboard() {
             <button type="submit" onClick={generateReportEspecialesByRange}>Generar reporte especiales por rango</button><br />
 
             <br></br><hr /><br></br>
-            <button type="submit" onClick={generateReportMunicipalityByPeriod}>Generar reportes municipales por periodo</button>
-            <button type="submit" onClick={generateReportMunicipalityByMunipality}>Generar reportes municipales por municipio</button>
-            <button type="submit" onClick={generateReportMunicipalityByRange}>Generar reportes municipales por rango</button>
+            <button type="submit" onClick={generateReportMunicipalityByPeriod}>Generar reportes municipales por periodo</button><br />
+            <button type="submit" onClick={generateReportMunicipalityByMunipality}>Generar reportes municipales por municipio</button><br />
+            <button type="submit" onClick={generateReportMunicipalityByRange}>Generar reportes municipales por rango</button><br />
 
 
         </div>
