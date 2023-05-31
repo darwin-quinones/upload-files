@@ -334,10 +334,11 @@ export default function Dashboard() {
             .finally(() => console.log('Terminado exitosamente'))
     }
 
+
     const generateReportMunicipalityByPeriod = (event) => {
         event.preventDefault()
         const id_year = '2022'
-        const id_month = '11'
+        const id_month = '12'
         const period = id_year + id_month
         const report_code = 9
         const data = {period, report_code}
@@ -373,10 +374,10 @@ export default function Dashboard() {
     }
     const generateReportMunicipalityByMunipality = (event) => {
         event.preventDefault()
-        const department = 'GUAJIRA'
-        const municipality = 'SAN JUAN DEL CESAR'
+        const department = 'BOLIVAR'
+        const municipality = 'CLEMENCIA'
         const id_year = '2022'
-        const id_month = '08'
+        const id_month = '12'
         const report_code = 10
         const data = {report_code, id_month, id_year, municipality, department}
         const filename = "Reporte Aportes Municipales "+ department +" - " + municipality +" - Periodo "+ id_year + id_month +".xlsx";
@@ -411,8 +412,8 @@ export default function Dashboard() {
     }
     const generateReportMunicipalityByRange = (event) => {
         event.preventDefault()
-        const start_date = '2022-02-01';
-        const end_date = '2022-07-31';
+        const start_date = '2022-06-01';
+        const end_date = '2022-12-31';
         const report_code = 11
         const data = {report_code, start_date, end_date}
         const filename = "Reporte Aportes Municipales - Rango " + start_date +" & " + end_date + ".xlsx";
@@ -465,8 +466,6 @@ export default function Dashboard() {
             <button type="submit" onClick={generateReportMunicipalityByPeriod}>Generar reportes municipales por periodo</button><br />
             <button type="submit" onClick={generateReportMunicipalityByMunipality}>Generar reportes municipales por municipio</button><br />
             <button type="submit" onClick={generateReportMunicipalityByRange}>Generar reportes municipales por rango</button><br />
-
-
         </div>
 
     );

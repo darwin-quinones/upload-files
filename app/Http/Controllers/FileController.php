@@ -1134,84 +1134,181 @@ class FileController extends Controller
                 FM.FECHA_ENTREGA AS FECHA_ENTREGA,
                 FM.FECHA_VENCIMIENTO AS FECHA_VENCIMIENTO,
                 FM.PERIODO_FACTURA AS PERIODO,
-                CASE
-                    WHEN FM.ESTADO_FACTURA = 1 THEN 'ENTREGADO'
-                    WHEN FM.ESTADO_FACTURA = 2 THEN 'PENDIENTE ENVIO'
-                    WHEN FM.ESTADO_FACTURA = 3 THEN 'RECLAMADA'
-                    WHEN FM.ESTADO_FACTURA = 6 THEN 'PAGADO ACUERDO'
-                END AS ESTADO_FACTURA,
+                FM.ESTADO_FACTURA AS ESTADO_FACT_ID,
+                '' AS ESTADO_FACTURA,
                 FM.OBSERVACIONES AS OBSERVACIONES,
-                (SELECT SUM(VALOR_RECAUDO) FROM recaudo_municipales_2 WHERE ID_FACTURACION = FM.ID_FACTURACION) AS VALOR_RECAUDO,
+                0 AS VALOR_RECAUDO,
                 FM.NO_CC_VENCIDAS AS CC_VENCIDAS,
-                RM.FECHA_PAGO_BITACORA,
-                DATE_FORMAT(RM.FECHA_CREACION, '%Y-%m-%d') AS FECHA_CREACION_BITACORA,
-                CASE
-                    WHEN RM.ESTADO_RECAUDO = 1 THEN 'ENTREGADO'
-                    WHEN RM.ESTADO_RECAUDO = 2 THEN 'PENDIENTE ENVIO'
-                    WHEN RM.ESTADO_RECAUDO = 3 THEN 'RECLAMADA'
-                    WHEN RM.ESTADO_RECAUDO = 4 THEN 'PAGADA'
-                    WHEN RM.ESTADO_RECAUDO = 5 THEN 'PAGO PARCIAL'
-                    WHEN RM.ESTADO_RECAUDO = 6 THEN 'PAGADO ACUERDO'
-                END AS ESTADO_RECAUDO,
-                RM.OBSERVACIONES AS OBSERV_RECA
-                FROM facturacion_municipales_2 FM
-                LEFT JOIN recaudo_municipales_2 RM ON FM.ID_FACTURACION = RM.ID_FACTURACION,
+                '' AS FECHA_PAGO_BITACORA,
+                '' AS FECHA_CREACION_BITACORA,
+                '' AS ESTADO_RECAUDO,
+                '' AS OBSERV_RECA,
+                FM.ID_FACTURACION
+                FROM facturacion_municipales_2 FM,
                    departamentos_visitas_2 DV,
                    municipios_visitas_2 MV
                 WHERE FM.ID_COD_DPTO = DV.ID_DEPARTAMENTO
                 AND FM.ID_COD_MPIO = MV.ID_MUNICIPIO
                 AND DV.ID_DEPARTAMENTO = MV.ID_DEPARTAMENTO
                 AND FM.PERIODO_FACTURA = ?
-                /*GROUP BY MV.NOMBRE*/
                 ORDER BY DV.NOMBRE, MV.NOMBRE, FM.FECHA_FACTURA DESC
                 ", [$period]);
-
-                // foreach ($data as &$row) {
-                //     $query_recaudo = DB::table('recaudo_municipales_2')->where('ID_FACTURACION', $row->ID_FACTURACION)->first();
-                //     $recaudo = 0;
-                //     $estado = '';
-                //     if ($query_recaudo) {
-                //         foreach ($query_recaudo as $row_recaudo) {
-                //             $recaudo = $recaudo + $row_recaudo->VALOR_RECAUDO;
-                //         }
-
-                //         $row->VALOR_RECAUDO = $recaudo;
-                //         $row->CC_VENCIDAS = $row->CC_VENCIDAS;
-                //         $row->FECHA_RECA_BITACORA = $query_recaudo->FECHA_PAGO_BITACORA;
-                //         switch ($query_recaudo->ESTADO_FACTURA) {
-                //             case "1":
-                //                 $estado = "ENTREGADO";
-                //                 break;
-                //             case "2":
-                //                 $estado = "PENDIENTE ENVIO";
-                //                 break;
-                //             case "3":
-                //                 $estado = "RECLAMADA";
-                //                 break;
-                //             case "4":
-                //                 $estado = "PAGADA";
-                //                 break;
-                //             case "5":
-                //                 $estado = "PAGO PARCIAL";
-                //                 break;
-                //             case "6":
-                //                 $estado = "PAGADO ACUERDO";
-                //                 break;
-                //         }
-                //         $row->FECHA_CREACION_RECA = $query_recaudo->FECHA_CREACION;
-                //         $row->ESTADO_RECAUDO = $estado;
-                //         $row->OBSERV_RECA = $query_recaudo->OBSERVACIONES;
-                //     } else {
-                //         $row->VALOR_RECAUDO = 0;
-                //         $row->CC_VENCIDAS = $row->CC_VENCIDAS;
-                //         $row->FECHA_RECA_BITACORA = '';
-                //         $row->FECHA_CREACION_RECA = '';
-                //         $row->ESTADO_RECAUDO = '';
-                //         $row->OBSERV_RECA = '';
-                //     }
-                //     unset($row->ID_FACTURACION);
-                // }
-                // END FOREACH DATA
+                $newData = [];
+                foreach ($data as $row) {
+                    $query_recaudo = DB::table('recaudo_municipales_2')->where('ID_FACTURACION', $row->ID_FACTURACION)->get();
+                    $estado = '';
+                    $sw = 0;
+                    $stado_fact_id = $row->ESTADO_FACT_ID;
+                    unset($row->ID_FACTURACION);
+                    unset($row->ESTADO_FACT_ID);
+                    $obj = clone $row;
+                    if (count($query_recaudo) > 0) {
+                        foreach ($query_recaudo as $row_recaudo) {
+                            $obj = clone $row;
+                            if ($sw == 0) {
+                                $obj->DEPARTAMENTO = $row->DEPARTAMENTO;
+                                $obj->MUNICIPIO = $row->MUNICIPIO;
+                                $obj->FACTURA = $row->FACTURA;
+                                $obj->VALOR_FACTURA = $row->VALOR_FACTURA;
+                                $obj->FECHA_FACTURA = $row->FECHA_FACTURA;
+                                $obj->FECHA_ENTREGA = $row->FECHA_ENTREGA;
+                                $obj->FECHA_VENCIMIENTO = $row->FECHA_VENCIMIENTO;
+                                $obj->PERIODO = $row->PERIODO;
+                                switch ($stado_fact_id) {
+                                    case "1":
+                                        $estado_fact = "ENTREGADO";
+                                        break;
+                                    case "2":
+                                        $estado_fact = "PENDIENTE ENVIO";
+                                        break;
+                                    case "3":
+                                        $estado_fact = "RECLAMADA";
+                                        break;
+                                    case "6":
+                                        $estado_fact = "PAGADO ACUERDO";
+                                        break;
+                                }
+                                $obj->ESTADO_FACTURA = $estado_fact;
+                                $obj->OBSERVACIONES =  $row->OBSERVACIONES;
+                                $obj->VALOR_RECAUDO = $row_recaudo->VALOR_RECAUDO;
+                                $obj->CC_VENCIDAS =  $row->CC_VENCIDAS;
+                                $obj->FECHA_PAGO_BITACORA = $row_recaudo->FECHA_PAGO_BITACORA;
+                                $obj->FECHA_CREACION_BITACORA = $row_recaudo->FECHA_CREACION;
+                                switch ($row_recaudo->ESTADO_RECAUDO) {
+                                    case "1":
+                                        $estado = "ENTREGADO";
+                                        break;
+                                    case "2":
+                                        $estado = "PENDIENTE ENVIO";
+                                        break;
+                                    case "3":
+                                        $estado = "RECLAMADA";
+                                        break;
+                                    case "4":
+                                        $estado = "PAGADA";
+                                        break;
+                                    case "5":
+                                        $estado = "PAGO PARCIAL";
+                                        break;
+                                    case "6":
+                                        $estado = "PAGADO ACUERDO";
+                                        break;
+                                }
+                                $obj->ESTADO_RECAUDO = $estado;
+                                $obj->OBSERV_RECA = $row_recaudo->OBSERVACIONES;
+                                $newData[] = $obj;
+                                $sw = 1;
+                            } else {
+                                $obj->DEPARTAMENTO = $row->DEPARTAMENTO;
+                                $obj->MUNICIPIO = $row->MUNICIPIO;
+                                $obj->FACTURA = $row->FACTURA;
+                                $obj->VALOR_FACTURA = 0;
+                                $obj->FECHA_FACTURA = $row->FECHA_FACTURA;
+                                $obj->FECHA_ENTREGA = $row->FECHA_ENTREGA;
+                                $obj->FECHA_VENCIMIENTO = $row->FECHA_VENCIMIENTO;
+                                $obj->PERIODO = $row->PERIODO;
+                                switch ($stado_fact_id) {
+                                    case "1":
+                                        $estado_fact = "ENTREGADO";
+                                        break;
+                                    case "2":
+                                        $estado_fact = "PENDIENTE ENVIO";
+                                        break;
+                                    case "3":
+                                        $estado_fact = "RECLAMADA";
+                                        break;
+                                    case "6":
+                                        $estado_fact = "PAGADO ACUERDO";
+                                        break;
+                                }
+                                $obj->ESTADO_FACTURA = $estado_fact;
+                                $obj->OBSERVACIONES = $row->OBSERVACIONES;
+                                $obj->VALOR_RECAUDO = $row_recaudo->VALOR_RECAUDO;
+                                $obj->CC_VENCIDAS = $row->CC_VENCIDAS;
+                                $obj->FECHA_PAGO_BITACORA = $row_recaudo->FECHA_PAGO_BITACORA;
+                                $obj->FECHA_CREACION_BITACORA = $row_recaudo->FECHA_CREACION;
+                                switch ($row_recaudo->ESTADO_RECAUDO) {
+                                    case "1":
+                                        $estado = "ENTREGADO";
+                                        break;
+                                    case "2":
+                                        $estado = "PENDIENTE ENVIO";
+                                        break;
+                                    case "3":
+                                        $estado = "RECLAMADA";
+                                        break;
+                                    case "4":
+                                        $estado = "PAGADA";
+                                        break;
+                                    case "5":
+                                        $estado = "PAGO PARCIAL";
+                                        break;
+                                    case "6":
+                                        $estado = "PAGADO ACUERDO";
+                                        break;
+                                }
+                                $obj->ESTADO_RECAUDO = $estado;
+                                $obj->OBSERV_RECA = $row_recaudo->OBSERVACIONES;
+                                $newData[] = $obj;
+                                $sw = 1;
+                            }
+                        }
+                    } else {
+                        $obj->DEPARTAMENTO = $row->DEPARTAMENTO;
+                        $obj->MUNICIPIO = $row->MUNICIPIO;
+                        $obj->FACTURA = $row->FACTURA;
+                        $obj->VALOR_FACTURA = $row->VALOR_FACTURA;
+                        $obj->FECHA_FACTURA = $row->FECHA_FACTURA;
+                        $obj->FECHA_ENTREGA = $row->FECHA_ENTREGA;
+                        $obj->FECHA_VENCIMIENTO = $row->FECHA_VENCIMIENTO;
+                        $obj->PERIODO = $row->PERIODO;
+                        switch ($stado_fact_id) {
+                            case "1":
+                                $estado_fact = "ENTREGADO";
+                                break;
+                            case "2":
+                                $estado_fact = "PENDIENTE ENVIO";
+                                break;
+                            case "3":
+                                $estado_fact = "RECLAMADA";
+                                break;
+                            case "6":
+                                $estado_fact = "PAGADO ACUERDO";
+                                break;
+                        }
+                        $obj->ESTADO_FACTURA = $estado_fact;
+                        $obj->OBSERVACIONES = $row->OBSERVACIONES;
+                        $obj->VALOR_RECAUDO = 0;
+                        $obj->CC_VENCIDAS = $row->CC_VENCIDAS;
+                        $obj->FECHA_PAGO_BITACORA = '';
+                        $obj->FECHA_CREACION_BITACORA = '';
+                        $obj->ESTADO_RECAUDO = $estado;
+                        $obj->OBSERV_RECA =  '';
+                        $newData[] = $obj;
+                        $sw = 1;
+                    }
+                }
+                //END FOREACH DATA
 
                 $mySpreadsheet = new \PhpOffice\PhpSpreadsheet\Spreadsheet();
                 // delete the default active sheet
@@ -1227,12 +1324,12 @@ class FileController extends Controller
                     'OBSERV. RECAUDO'
                 ];
                 // transform array to 2D array
-                $dataArray = json_decode(json_encode($data), true);
-                $data = array_map(function ($row) {
+                $dataArray = json_decode(json_encode($newData), true);
+                $newData = array_map(function ($row) {
                     return array_values((array)$row);
                 }, $dataArray);
-                array_unshift($data, $data_head);
-                $worksheet1->fromArray($data, null, 'A1');
+                array_unshift($newData, $data_head);
+                $worksheet1->fromArray($newData, null, 'A1');
                 $worksheets = [$worksheet1];
 
                 // adjust autosize
@@ -1284,28 +1381,17 @@ class FileController extends Controller
                 FM.FECHA_ENTREGA AS FECHA_ENTREGA,
                 FM.FECHA_VENCIMIENTO AS FECHA_VENCIMIENTO,
                 FM.PERIODO_FACTURA AS PERIODO,
-                CASE
-                    WHEN FM.ESTADO_FACTURA = 1 THEN 'ENTREGADO'
-                    WHEN FM.ESTADO_FACTURA = 2 THEN 'PENDIENTE ENVIO'
-                    WHEN FM.ESTADO_FACTURA = 3 THEN 'RECLAMADA'
-                    WHEN FM.ESTADO_FACTURA = 6 THEN 'PAGADO ACUERDO'
-                END AS ESTADO_FACTURA,
+                FM.ESTADO_FACTURA AS ESTADO_FACT_ID,
+                '' AS ESTADO_FACTURA,
                 FM.OBSERVACIONES AS OBSERVACIONES,
-                (SELECT SUM(VALOR_RECAUDO) FROM recaudo_municipales_2 WHERE ID_FACTURACION = FM.ID_FACTURACION) AS VALOR_RECAUDO,
+                0 AS VALOR_RECAUDO,
                 FM.NO_CC_VENCIDAS AS CC_VENCIDAS,
-                RM.FECHA_PAGO_BITACORA,
-                DATE_FORMAT(RM.FECHA_CREACION, '%Y-%m-%d') AS FECHA_CREACION_BITACORA,
-                CASE
-                    WHEN RM.ESTADO_RECAUDO = 1 THEN 'ENTREGADO'
-                    WHEN RM.ESTADO_RECAUDO = 2 THEN 'PENDIENTE ENVIO'
-                    WHEN RM.ESTADO_RECAUDO = 3 THEN 'RECLAMADA'
-                    WHEN RM.ESTADO_RECAUDO = 4 THEN 'PAGADA'
-                    WHEN RM.ESTADO_RECAUDO = 5 THEN 'PAGO PARCIAL'
-                    WHEN RM.ESTADO_RECAUDO = 6 THEN 'PAGADO ACUERDO'
-                END AS ESTADO_RECAUDO,
-                RM.OBSERVACIONES AS OBSERV_RECA
-                FROM facturacion_municipales_2 FM
-                LEFT JOIN recaudo_municipales_2 RM ON FM.ID_FACTURACION = RM.ID_FACTURACION,
+                '' AS FECHA_PAGO_BITACORA,
+                '' AS FECHA_CREACION_BITACORA,
+                '' AS ESTADO_RECAUDO,
+                '' AS OBSERV_RECA,
+                FM.ID_FACTURACION
+                FROM facturacion_municipales_2 FM,
                    departamentos_visitas_2 DV,
                    municipios_visitas_2 MV
                 WHERE FM.ID_COD_DPTO = DV.ID_DEPARTAMENTO
@@ -1318,6 +1404,162 @@ class FileController extends Controller
                 ORDER BY DV.NOMBRE, MV.NOMBRE, FM.FECHA_FACTURA DESC
                 ", [$id_year, $id_month, $id_department, $id_municipality]);
 
+                $newData = [];
+                foreach ($data as $row) {
+                    $query_recaudo = DB::table('recaudo_municipales_2')->where('ID_FACTURACION', $row->ID_FACTURACION)->get();
+                    $estado = '';
+                    $sw = 0;
+                    $stado_fact_id = $row->ESTADO_FACT_ID;
+                    unset($row->ID_FACTURACION);
+                    unset($row->ESTADO_FACT_ID);
+                    $obj = clone $row;
+                    if (count($query_recaudo) > 0) {
+                        foreach ($query_recaudo as $row_recaudo) {
+                            $obj = clone $row;
+                            if ($sw == 0) {
+                                $obj->DEPARTAMENTO = $row->DEPARTAMENTO;
+                                $obj->MUNICIPIO = $row->MUNICIPIO;
+                                $obj->FACTURA = $row->FACTURA;
+                                $obj->VALOR_FACTURA = $row->VALOR_FACTURA;
+                                $obj->FECHA_FACTURA = $row->FECHA_FACTURA;
+                                $obj->FECHA_ENTREGA = $row->FECHA_ENTREGA;
+                                $obj->FECHA_VENCIMIENTO = $row->FECHA_VENCIMIENTO;
+                                $obj->PERIODO = $row->PERIODO;
+                                switch ($stado_fact_id) {
+                                    case "1":
+                                        $estado_fact = "ENTREGADO";
+                                        break;
+                                    case "2":
+                                        $estado_fact = "PENDIENTE ENVIO";
+                                        break;
+                                    case "3":
+                                        $estado_fact = "RECLAMADA";
+                                        break;
+                                    case "6":
+                                        $estado_fact = "PAGADO ACUERDO";
+                                        break;
+                                }
+                                $obj->ESTADO_FACTURA = $estado_fact;
+                                $obj->OBSERVACIONES =  $row->OBSERVACIONES;
+                                $obj->VALOR_RECAUDO = $row_recaudo->VALOR_RECAUDO;
+                                $obj->CC_VENCIDAS =  $row->CC_VENCIDAS;
+                                $obj->FECHA_PAGO_BITACORA = $row_recaudo->FECHA_PAGO_BITACORA;
+                                $obj->FECHA_CREACION_BITACORA = $row_recaudo->FECHA_CREACION;
+                                switch ($row_recaudo->ESTADO_RECAUDO) {
+                                    case "1":
+                                        $estado = "ENTREGADO";
+                                        break;
+                                    case "2":
+                                        $estado = "PENDIENTE ENVIO";
+                                        break;
+                                    case "3":
+                                        $estado = "RECLAMADA";
+                                        break;
+                                    case "4":
+                                        $estado = "PAGADA";
+                                        break;
+                                    case "5":
+                                        $estado = "PAGO PARCIAL";
+                                        break;
+                                    case "6":
+                                        $estado = "PAGADO ACUERDO";
+                                        break;
+                                }
+                                $obj->ESTADO_RECAUDO = $estado;
+                                $obj->OBSERV_RECA = $row_recaudo->OBSERVACIONES;
+                                $newData[] = $obj;
+                                $sw = 1;
+                            } else {
+                                $obj->DEPARTAMENTO = $row->DEPARTAMENTO;
+                                $obj->MUNICIPIO = $row->MUNICIPIO;
+                                $obj->FACTURA = $row->FACTURA;
+                                $obj->VALOR_FACTURA = 0;
+                                $obj->FECHA_FACTURA = $row->FECHA_FACTURA;
+                                $obj->FECHA_ENTREGA = $row->FECHA_ENTREGA;
+                                $obj->FECHA_VENCIMIENTO = $row->FECHA_VENCIMIENTO;
+                                $obj->PERIODO = $row->PERIODO;
+                                switch ($stado_fact_id) {
+                                    case "1":
+                                        $estado_fact = "ENTREGADO";
+                                        break;
+                                    case "2":
+                                        $estado_fact = "PENDIENTE ENVIO";
+                                        break;
+                                    case "3":
+                                        $estado_fact = "RECLAMADA";
+                                        break;
+                                    case "6":
+                                        $estado_fact = "PAGADO ACUERDO";
+                                        break;
+                                }
+                                $obj->ESTADO_FACTURA = $estado_fact;
+                                $obj->OBSERVACIONES = $row->OBSERVACIONES;
+                                $obj->VALOR_RECAUDO = $row_recaudo->VALOR_RECAUDO;
+                                $obj->CC_VENCIDAS = $row->CC_VENCIDAS;
+                                $obj->FECHA_PAGO_BITACORA = $row_recaudo->FECHA_PAGO_BITACORA;
+                                $obj->FECHA_CREACION_BITACORA = $row_recaudo->FECHA_CREACION;
+                                switch ($row_recaudo->ESTADO_RECAUDO) {
+                                    case "1":
+                                        $estado = "ENTREGADO";
+                                        break;
+                                    case "2":
+                                        $estado = "PENDIENTE ENVIO";
+                                        break;
+                                    case "3":
+                                        $estado = "RECLAMADA";
+                                        break;
+                                    case "4":
+                                        $estado = "PAGADA";
+                                        break;
+                                    case "5":
+                                        $estado = "PAGO PARCIAL";
+                                        break;
+                                    case "6":
+                                        $estado = "PAGADO ACUERDO";
+                                        break;
+                                }
+                                $obj->ESTADO_RECAUDO = $estado;
+                                $obj->OBSERV_RECA = $row_recaudo->OBSERVACIONES;
+                                $newData[] = $obj;
+                                $sw = 1;
+                            }
+                        }
+                    } else {
+                        $obj->DEPARTAMENTO = $row->DEPARTAMENTO;
+                        $obj->MUNICIPIO = $row->MUNICIPIO;
+                        $obj->FACTURA = $row->FACTURA;
+                        $obj->VALOR_FACTURA = $row->VALOR_FACTURA;
+                        $obj->FECHA_FACTURA = $row->FECHA_FACTURA;
+                        $obj->FECHA_ENTREGA = $row->FECHA_ENTREGA;
+                        $obj->FECHA_VENCIMIENTO = $row->FECHA_VENCIMIENTO;
+                        $obj->PERIODO = $row->PERIODO;
+                        switch ($stado_fact_id) {
+                            case "1":
+                                $estado_fact = "ENTREGADO";
+                                break;
+                            case "2":
+                                $estado_fact = "PENDIENTE ENVIO";
+                                break;
+                            case "3":
+                                $estado_fact = "RECLAMADA";
+                                break;
+                            case "6":
+                                $estado_fact = "PAGADO ACUERDO";
+                                break;
+                        }
+                        $obj->ESTADO_FACTURA = $estado_fact;
+                        $obj->OBSERVACIONES = $row->OBSERVACIONES;
+                        $obj->VALOR_RECAUDO = 0;
+                        $obj->CC_VENCIDAS = $row->CC_VENCIDAS;
+                        $obj->FECHA_PAGO_BITACORA = '';
+                        $obj->FECHA_CREACION_BITACORA = '';
+                        $obj->ESTADO_RECAUDO = $estado;
+                        $obj->OBSERV_RECA =  '';
+                        $newData[] = $obj;
+                        $sw = 1;
+                    }
+                }
+                //END FOREACH DATA
 
                 $mySpreadsheet = new \PhpOffice\PhpSpreadsheet\Spreadsheet();
                 // delete the default active sheet
@@ -1334,12 +1576,12 @@ class FileController extends Controller
                     'OBSERV. RECAUDO'
                 ];
                 // transform array to 2D array
-                $dataArray = json_decode(json_encode($data), true);
-                $data = array_map(function ($row) {
+                $dataArray = json_decode(json_encode($newData), true);
+                $newData = array_map(function ($row) {
                     return array_values((array)$row);
                 }, $dataArray);
-                array_unshift($data, $data_head);
-                $worksheet1->fromArray($data, null, 'A1');
+                array_unshift($newData, $data_head);
+                $worksheet1->fromArray($newData, null, 'A1');
                 $worksheets = [$worksheet1];
 
                 // adjust autosize
@@ -1372,118 +1614,8 @@ class FileController extends Controller
                 // File is save here: public\uploads\reports\Reporte Operadores - Periodo 202302.xlsx
                 return response()->download($filePath)->deleteFileAfterSend(true);
                 break;
-            case 1112:
-                $start_date = $request->input('start_date');
-                $end_date = $request->input('end_date');
-
-                $data = DB::select("SELECT DV.NOMBRE AS DEPARTAMENTO,
-                MV.NOMBRE AS MUNICIPIO,
-                FM.CONSECUTIVO_FACT AS FACTURA,
-                FM.VALOR_FACTURA AS VALOR_FACTURA,
-                FM.FECHA_FACTURA AS FECHA_FACTURA,
-                FM.FECHA_ENTREGA AS FECHA_ENTREGA,
-                FM.FECHA_VENCIMIENTO AS FECHA_VENCIMIENTO,
-                FM.PERIODO_FACTURA AS PERIODO,
-                FM.ESTADO_FACTURA AS ESTADO_FACT_ID,
-                '' AS ESTADO_FACTURA,
-                FM.OBSERVACIONES AS OBSERVACIONES,
-                '' AS VALOR_RECAUDO,
-                FM.NO_CC_VENCIDAS AS CC_VENCIDAS,
-                '' AS FECHA_PAGO_BITACORA,
-                '' AS FECHA_CREACION_BITACORA,
-                '' AS ESTADO_RECAUDO,
-                '' AS OBSERV_RECA,
-                FM.ID_FACTURACION
-                FROM facturacion_municipales_2 FM,
-                   departamentos_visitas_2 DV,
-                   municipios_visitas_2 MV
-                WHERE FM.ID_COD_DPTO = DV.ID_DEPARTAMENTO
-                AND FM.ID_COD_MPIO = MV.ID_MUNICIPIO
-                AND DV.ID_DEPARTAMENTO = MV.ID_DEPARTAMENTO
-                AND FM.FECHA_FACTURA BETWEEN  ? AND ?
-                ORDER BY DV.NOMBRE, MV.NOMBRE, FM.FECHA_FACTURA DESC", [$start_date, $end_date]);
-
-                foreach ($data as &$row_info_rango) {
-                    $query_select_info_recaudo = DB::table('recaudo_municipales_2')->where('ID_FACTURACION', $row_info_rango->ID_FACTURACION)->get();
-                    $estado = '';
-                    $sw = 0;
-                    if (count($query_select_info_recaudo) > 0) {
-                        foreach ($query_select_info_recaudo as  &$row_info_recaudo) {
-
-                            if ($sw == 0) {
-                                $row_info_rango->DEPARTAMENTO = $row_info_rango->DEPARTAMENTO;
-                                $row_info_rango->MUNICIPIO = $row_info_rango->MUNICIPIO;
-                                $row_info_rango->FACTURA = $row_info_rango->FACTURA;
-                                $row_info_rango->VALOR_FACTURA = $row_info_rango->VALOR_FACTURA;
-                                $row_info_rango->FECHA_FACTURA = $row_info_rango->FECHA_FACTURA;
-                                $row_info_rango->FECHA_ENTREGA = $row_info_rango->FECHA_ENTREGA;
-                                $row_info_rango->FECHA_VENCIMIENTO = $row_info_rango->FECHA_VENCIMIENTO;
-                                $row_info_rango->PERIODO = $row_info_rango->PERIODO;
-
-                                switch ($row_info_rango->ESTADO_FACT_ID) {
-                                    case "1":
-                                        $estado_fact = "ENTREGADO";
-                                        break;
-                                    case "2":
-                                        $estado_fact = "PENDIENTE ENVIO";
-                                        break;
-                                    case "3":
-                                        $estado_fact = "RECLAMADA";
-                                        break;
-                                    case "6":
-                                        $estado_fact = "PAGADO ACUERDO";
-                                        break;
-                                }
-                                $row_info_rango->ESTADO_FACTURA = $estado_fact;
-                                $row_info_rango->OBSERVACIONES =  $row_info_rango->OBSERVACIONES;
-                                $row_info_rango->VALOR_RECAUDO = $row_info_recaudo->VALOR_RECAUDO;
-                                $row_info_rango->CC_VENCIDAS =  $row_info_rango->CC_VENCIDAS;
-                                $row_info_rango->FECHA_PAGO_BITACORA = $row_info_recaudo->FECHA_PAGO_BITACORA;
-                                $row_info_rango->FECHA_CREACION_BITACORA = $row_info_recaudo->FECHA_CREACION;
-                                switch ($row_info_recaudo->ESTADO_RECAUDO) {
-                                    case "1":
-                                        $estado = "ENTREGADO";
-                                        break;
-                                    case "2":
-                                        $estado = "PENDIENTE ENVIO";
-                                        break;
-                                    case "3":
-                                        $estado = "RECLAMADA";
-                                        break;
-                                    case "4":
-                                        $estado = "PAGADA";
-                                        break;
-                                    case "5":
-                                        $estado = "PAGO PARCIAL";
-                                        break;
-                                    case "6":
-                                        $estado = "PAGADO ACUERDO";
-                                        break;
-                                }
-                                $row_info_rango->ESTADO_RECAUDO = $estado;
-                                $row_info_rango->OBSERV_RECA = $row_info_recaudo->OBSERVACIONES;
-                                $sw = 1;
-                            } else {
-                                $obj1 = new stdClass();
-                                $obj1->DEPARTAMENTO = $row_info_rango->DEPARTAMENTO;
-                                $obj1->MUNICIPIO = $row_info_rango->MUNICIPIO;
-                                $obj1->FACTURA = $row_info_rango->FACTURA;
-                                $obj1->VALOR_FACTURA = $row_info_rango->VALOR_FACTURA;
-                                $obj1->FECHA_FACTURA = $row_info_rango->FECHA_FACTURA;
-                                $obj1->FECHA_ENTREGA = $row_info_rango->FECHA_ENTREGA;
-                                $obj1->FECHA_VENCIMIENTO = $row_info_rango->FECHA_VENCIMIENTO;
-                                $obj1->PERIODO = $row_info_rango->PERIODO;
-                                $data[] = $obj1;
-                                $sw = 1;
-                            }
-                        }
-                    } else {
-                        $sw = 1;
-                    }
-                }
-                var_dump($data);
             case 11:
-
+                // Reporte Aportes Municipales - R
                 $start_date = $request->input('start_date');
                 $end_date = $request->input('end_date');
 
@@ -1512,33 +1644,29 @@ class FileController extends Controller
                     AND FM.ID_COD_MPIO = MV.ID_MUNICIPIO
                     AND DV.ID_DEPARTAMENTO = MV.ID_DEPARTAMENTO
                     AND FM.FECHA_FACTURA BETWEEN  ? AND ?
-                    /*AND FM.ID_FACTURACION = 529*/
                     ORDER BY DV.NOMBRE, MV.NOMBRE, FM.FECHA_FACTURA DESC", [$start_date, $end_date]);
 
                 $newData = [];
-                foreach ($data as $row_info_rango) {
-                    $query_select_info_recaudo = DB::table('recaudo_municipales_2')->where('ID_FACTURACION', $row_info_rango->ID_FACTURACION)->get();
+                foreach ($data as $row) {
+                    $query_recaudo = DB::table('recaudo_municipales_2')->where('ID_FACTURACION', $row->ID_FACTURACION)->get();
                     $estado = '';
                     $sw = 0;
-                    $stado_fact_id = $row_info_rango->ESTADO_FACT_ID;
-                    unset($row_info_rango->ID_FACTURACION);
-                    unset($row_info_rango->ESTADO_FACT_ID);
-                    $obj = clone $row_info_rango;
-                    if (count($query_select_info_recaudo) > 0) {
-                        foreach ($query_select_info_recaudo as  $row_info_recaudo) {
-                            $obj = clone $row_info_rango;
+                    $stado_fact_id = $row->ESTADO_FACT_ID;
+                    unset($row->ID_FACTURACION);
+                    unset($row->ESTADO_FACT_ID);
+                    $obj = clone $row;
+                    if (count($query_recaudo) > 0) {
+                        foreach ($query_recaudo as $row_recaudo) {
+                            $obj = clone $row;
                             if ($sw == 0) {
-                                // echo 'fact: '. $row_info_rango->FACTURA;
-                                // echo 'valor 1: '. $row_info_recaudo->VALOR_RECAUDO;
-                                $obj->DEPARTAMENTO = $row_info_rango->DEPARTAMENTO;
-                                $obj->MUNICIPIO = $row_info_rango->MUNICIPIO;
-                                $obj->FACTURA = $row_info_rango->FACTURA;
-                                $obj->VALOR_FACTURA = $row_info_rango->VALOR_FACTURA;
-                                $obj->FECHA_FACTURA = $row_info_rango->FECHA_FACTURA;
-                                $obj->FECHA_ENTREGA = $row_info_rango->FECHA_ENTREGA;
-                                $obj->FECHA_VENCIMIENTO = $row_info_rango->FECHA_VENCIMIENTO;
-                                $obj->PERIODO = $row_info_rango->PERIODO;
-
+                                $obj->DEPARTAMENTO = $row->DEPARTAMENTO;
+                                $obj->MUNICIPIO = $row->MUNICIPIO;
+                                $obj->FACTURA = $row->FACTURA;
+                                $obj->VALOR_FACTURA = $row->VALOR_FACTURA;
+                                $obj->FECHA_FACTURA = $row->FECHA_FACTURA;
+                                $obj->FECHA_ENTREGA = $row->FECHA_ENTREGA;
+                                $obj->FECHA_VENCIMIENTO = $row->FECHA_VENCIMIENTO;
+                                $obj->PERIODO = $row->PERIODO;
                                 switch ($stado_fact_id) {
                                     case "1":
                                         $estado_fact = "ENTREGADO";
@@ -1554,12 +1682,12 @@ class FileController extends Controller
                                         break;
                                 }
                                 $obj->ESTADO_FACTURA = $estado_fact;
-                                $obj->OBSERVACIONES =  $row_info_rango->OBSERVACIONES;
-                                $obj->VALOR_RECAUDO = $row_info_recaudo->VALOR_RECAUDO;
-                                $obj->CC_VENCIDAS =  $row_info_rango->CC_VENCIDAS;
-                                $obj->FECHA_PAGO_BITACORA = $row_info_recaudo->FECHA_PAGO_BITACORA;
-                                $obj->FECHA_CREACION_BITACORA = $row_info_recaudo->FECHA_CREACION;
-                                switch ($row_info_recaudo->ESTADO_RECAUDO) {
+                                $obj->OBSERVACIONES =  $row->OBSERVACIONES;
+                                $obj->VALOR_RECAUDO = $row_recaudo->VALOR_RECAUDO;
+                                $obj->CC_VENCIDAS =  $row->CC_VENCIDAS;
+                                $obj->FECHA_PAGO_BITACORA = $row_recaudo->FECHA_PAGO_BITACORA;
+                                $obj->FECHA_CREACION_BITACORA = $row_recaudo->FECHA_CREACION;
+                                switch ($row_recaudo->ESTADO_RECAUDO) {
                                     case "1":
                                         $estado = "ENTREGADO";
                                         break;
@@ -1580,26 +1708,39 @@ class FileController extends Controller
                                         break;
                                 }
                                 $obj->ESTADO_RECAUDO = $estado;
-                                $obj->OBSERV_RECA = $row_info_recaudo->OBSERVACIONES;
+                                $obj->OBSERV_RECA = $row_recaudo->OBSERVACIONES;
                                 $newData[] = $obj;
                                 $sw = 1;
                             } else {
-                                // echo 'fact: '. $row_info_rango->FACTURA;
-                                // echo 'valor 2: '. $row_info_recaudo->VALOR_RECAUDO;
-                                $obj->DEPARTAMENTO = $row_info_rango->DEPARTAMENTO;
-                                $obj->MUNICIPIO = $row_info_rango->MUNICIPIO;
-                                $obj->FACTURA = $row_info_rango->FACTURA;
+                                $obj->DEPARTAMENTO = $row->DEPARTAMENTO;
+                                $obj->MUNICIPIO = $row->MUNICIPIO;
+                                $obj->FACTURA = $row->FACTURA;
                                 $obj->VALOR_FACTURA = 0;
-                                $obj->FECHA_FACTURA = '';
-                                $obj->FECHA_ENTREGA = '';
-                                $obj->FECHA_VENCIMIENTO = '';
-                                $obj->PERIODO = '';
-                                $obj->ESTADO_FACTURA = '';
-                                $obj->OBSERVACIONES = '';
-                                $obj->VALOR_RECAUDO = $row_info_recaudo->VALOR_RECAUDO;
-                                $obj->CC_VENCIDAS = 0;
-                                $obj->FECHA_PAGO_BITACORA = $row_info_recaudo->FECHA_PAGO_BITACORA;
-                                switch ($row_info_recaudo->ESTADO_RECAUDO) {
+                                $obj->FECHA_FACTURA = $row->FECHA_FACTURA;
+                                $obj->FECHA_ENTREGA = $row->FECHA_ENTREGA;
+                                $obj->FECHA_VENCIMIENTO = $row->FECHA_VENCIMIENTO;
+                                $obj->PERIODO = $row->PERIODO;
+                                switch ($stado_fact_id) {
+                                    case "1":
+                                        $estado_fact = "ENTREGADO";
+                                        break;
+                                    case "2":
+                                        $estado_fact = "PENDIENTE ENVIO";
+                                        break;
+                                    case "3":
+                                        $estado_fact = "RECLAMADA";
+                                        break;
+                                    case "6":
+                                        $estado_fact = "PAGADO ACUERDO";
+                                        break;
+                                }
+                                $obj->ESTADO_FACTURA = $estado_fact;
+                                $obj->OBSERVACIONES = $row->OBSERVACIONES;
+                                $obj->VALOR_RECAUDO = $row_recaudo->VALOR_RECAUDO;
+                                $obj->CC_VENCIDAS = $row->CC_VENCIDAS;
+                                $obj->FECHA_PAGO_BITACORA = $row_recaudo->FECHA_PAGO_BITACORA;
+                                $obj->FECHA_CREACION_BITACORA = $row_recaudo->FECHA_CREACION;
+                                switch ($row_recaudo->ESTADO_RECAUDO) {
                                     case "1":
                                         $estado = "ENTREGADO";
                                         break;
@@ -1620,24 +1761,20 @@ class FileController extends Controller
                                         break;
                                 }
                                 $obj->ESTADO_RECAUDO = $estado;
-                                $obj->OBSERV_RECA = $row_info_recaudo->OBSERVACIONES;
+                                $obj->OBSERV_RECA = $row_recaudo->OBSERVACIONES;
                                 $newData[] = $obj;
                                 $sw = 1;
                             }
                         }
                     } else {
-
-
-                        $obj->DEPARTAMENTO = $row_info_rango->DEPARTAMENTO;
-                        $obj->MUNICIPIO = $row_info_rango->MUNICIPIO;
-                        $obj->FACTURA = $row_info_rango->FACTURA;
-                        $obj->VALOR_FACTURA = $row_info_rango->VALOR_FACTURA;
-                        $obj->FECHA_FACTURA = $row_info_rango->FECHA_FACTURA;
-                        $obj->FECHA_ENTREGA = $row_info_rango->FECHA_ENTREGA;
-                        $obj->FECHA_VENCIMIENTO = $row_info_rango->FECHA_VENCIMIENTO;
-                        $obj->PERIODO = $row_info_rango->PERIODO;
-
-
+                        $obj->DEPARTAMENTO = $row->DEPARTAMENTO;
+                        $obj->MUNICIPIO = $row->MUNICIPIO;
+                        $obj->FACTURA = $row->FACTURA;
+                        $obj->VALOR_FACTURA = $row->VALOR_FACTURA;
+                        $obj->FECHA_FACTURA = $row->FECHA_FACTURA;
+                        $obj->FECHA_ENTREGA = $row->FECHA_ENTREGA;
+                        $obj->FECHA_VENCIMIENTO = $row->FECHA_VENCIMIENTO;
+                        $obj->PERIODO = $row->PERIODO;
                         switch ($stado_fact_id) {
                             case "1":
                                 $estado_fact = "ENTREGADO";
@@ -1653,20 +1790,18 @@ class FileController extends Controller
                                 break;
                         }
                         $obj->ESTADO_FACTURA = $estado_fact;
-                        $obj->OBSERVACIONES = $row_info_rango->OBSERVACIONES;
+                        $obj->OBSERVACIONES = $row->OBSERVACIONES;
                         $obj->VALOR_RECAUDO = 0;
-                        $obj->CC_VENCIDAS = $row_info_rango->CC_VENCIDAS;
+                        $obj->CC_VENCIDAS = $row->CC_VENCIDAS;
                         $obj->FECHA_PAGO_BITACORA = '';
+                        $obj->FECHA_CREACION_BITACORA = '';
                         $obj->ESTADO_RECAUDO = $estado;
                         $obj->OBSERV_RECA =  '';
-
                         $newData[] = $obj;
-
                         $sw = 1;
                     }
                 }
-                //var_dump($newData);
-                //End foreach data
+                //END FOREACH DATA
 
                 $mySpreadsheet = new \PhpOffice\PhpSpreadsheet\Spreadsheet();
                 // delete the default active sheet
@@ -1719,266 +1854,6 @@ class FileController extends Controller
 
                 // File is save here: public\uploads\reports\Reporte Operadores - Periodo 202302.xlsx
                 return response()->download($filePath)->deleteFileAfterSend(true);
-                break;
-            case 11111:
-                // Reporte Aportes Municipales - Rango
-                $start_date = $request->input('start_date');
-                $end_date = $request->input('end_date');
-
-                // $data = DB::select("SELECT DV.NOMBRE AS DEPARTAMENTO,
-                // MV.NOMBRE AS MUNICIPIO,
-                // FM.CONSECUTIVO_FACT AS FACTURA,
-                // FM.VALOR_FACTURA AS VALOR_FACTURA,
-                // FM.FECHA_FACTURA AS FECHA_FACTURA,
-                // FM.FECHA_ENTREGA AS FECHA_ENTREGA,
-                // FM.FECHA_VENCIMIENTO AS FECHA_VENCIMIENTO,
-                // FM.PERIODO_FACTURA AS PERIODO,
-                // CASE
-                //     WHEN FM.ESTADO_FACTURA = 1 THEN 'ENTREGADO'
-                //     WHEN FM.ESTADO_FACTURA = 2 THEN 'PENDIENTE ENVIO'
-                //     WHEN FM.ESTADO_FACTURA = 3 THEN 'RECLAMADA'
-                //     WHEN FM.ESTADO_FACTURA = 6 THEN 'PAGADO ACUERDO'
-                // END AS ESTADO_FACTURA,
-                // FM.OBSERVACIONES AS OBSERVACIONES,
-                // (SELECT SUM(VALOR_RECAUDO) FROM recaudo_municipales_2 WHERE ID_FACTURACION = FM.ID_FACTURACION) AS VALOR_RECAUDO,
-                // FM.NO_CC_VENCIDAS AS CC_VENCIDAS,
-                // RM.FECHA_PAGO_BITACORA,
-                // DATE_FORMAT(RM.FECHA_CREACION, '%Y-%m-%d') AS FECHA_CREACION_BITACORA,
-                // CASE
-                //     WHEN RM.ESTADO_RECAUDO = 1 THEN 'ENTREGADO'
-                //     WHEN RM.ESTADO_RECAUDO = 2 THEN 'PENDIENTE ENVIO'
-                //     WHEN RM.ESTADO_RECAUDO = 3 THEN 'RECLAMADA'
-                //     WHEN RM.ESTADO_RECAUDO = 4 THEN 'PAGADA'
-                //     WHEN RM.ESTADO_RECAUDO = 5 THEN 'PAGO PARCIAL'
-                //     WHEN RM.ESTADO_RECAUDO = 6 THEN 'PAGADO ACUERDO'
-                // END AS ESTADO_RECAUDO,
-                // RM.OBSERVACIONES AS OBSERV_RECA
-                // FROM facturacion_municipales_2 FM
-                // LEFT JOIN recaudo_municipales_2 RM ON FM.ID_FACTURACION = RM.ID_FACTURACION,
-                //    departamentos_visitas_2 DV,
-                //    municipios_visitas_2 MV
-                // WHERE FM.ID_COD_DPTO = DV.ID_DEPARTAMENTO
-                // AND FM.ID_COD_MPIO = MV.ID_MUNICIPIO
-                // AND DV.ID_DEPARTAMENTO = MV.ID_DEPARTAMENTO
-                // AND FM.FECHA_FACTURA BETWEEN  ? AND ?
-                // ORDER BY DV.NOMBRE, MV.NOMBRE, FM.FECHA_FACTURA DESC
-                // ", [$start_date, $end_date]);
-
-                $data = DB::select("SELECT DV.NOMBRE AS DEPARTAMENTO,
-                MV.NOMBRE AS MUNICIPIO,
-                FM.CONSECUTIVO_FACT AS FACTURA,
-                FM.VALOR_FACTURA AS VALOR_FACTURA,
-                FM.FECHA_FACTURA AS FECHA_FACTURA,
-                FM.FECHA_ENTREGA AS FECHA_ENTREGA,
-                FM.FECHA_VENCIMIENTO AS FECHA_VENCIMIENTO,
-                FM.PERIODO_FACTURA AS PERIODO,
-                FM.ESTADO_FACTURA AS ESTADO_FACT_ID,
-                '' AS ESTADO_FACTURA,
-                FM.OBSERVACIONES AS OBSERVACIONES,
-                '' AS VALOR_RECAUDO,
-                FM.NO_CC_VENCIDAS AS CC_VENCIDAS,
-                '' AS FECHA_PAGO_BITACORA,
-                '' AS FECHA_CREACION_BITACORA,
-                '' AS ESTADO_RECAUDO,
-                '' AS OBSERV_RECA,
-                FM.ID_FACTURACION
-                FROM facturacion_municipales_2 FM
-                LEFT JOIN recaudo_municipales_2 RM ON FM.ID_FACTURACION = RM.ID_FACTURACION,
-                   departamentos_visitas_2 DV,
-                   municipios_visitas_2 MV
-                WHERE FM.ID_COD_DPTO = DV.ID_DEPARTAMENTO
-                AND FM.ID_COD_MPIO = MV.ID_MUNICIPIO
-                AND DV.ID_DEPARTAMENTO = MV.ID_DEPARTAMENTO
-                AND FM.FECHA_FACTURA BETWEEN  ? AND ?
-                ORDER BY DV.NOMBRE, MV.NOMBRE, FM.FECHA_FACTURA DESC", [$start_date, $end_date]);
-
-                foreach ($data as &$row_info_rango) {
-                    $query_select_info_recaudo = DB::table('recaudo_municipales_2')->where('ID_FACTURACION', $row_info_rango->ID_FACTURACION)->get();
-
-
-                    $estado_fact = '';
-                    $estado = '';
-                    $recaudo = 0;
-
-                    if (count($query_select_info_recaudo) > 0) {
-                        $first = true;
-                        echo 'count: ' . count($query_select_info_recaudo);
-                        foreach ($query_select_info_recaudo as  &$row_info_recaudo) {
-                            //print_r($row_info_recaudo);
-                            if ($first == true) {
-                                echo ' valor recaudo recaudo 1: ' . $row_info_recaudo->VALOR_RECAUDO;
-                                echo ' fact: ' . $row_info_rango->FACTURA;
-                                //     $row_info_rango->DEPARTAMENTO = $row_info_rango->DEPARTAMENTO;
-                                //     $row_info_rango->MUNICIPIO = $row_info_rango->MUNICIPIO;
-                                //     $row_info_rango->FACTURA = $row_info_rango->FACTURA;
-                                //     $row_info_rango->VALOR_FACTURA = $row_info_rango->VALOR_FACTURA;
-                                //     $row_info_rango->FECHA_FACTURA = $row_info_rango->FECHA_FACTURA;
-                                //     $row_info_rango->FECHA_ENTREGA = $row_info_rango->FECHA_ENTREGA;
-                                //     $row_info_rango->FECHA_VENCIMIENTO = $row_info_rango->FECHA_VENCIMIENTO;
-                                //     $row_info_rango->PERIODO = $row_info_rango->PERIODO;
-
-                                //     switch ($row_info_rango->ESTADO_FACT_ID) {
-                                //         case "1":
-                                //             $estado_fact = "ENTREGADO";
-                                //             break;
-                                //         case "2":
-                                //             $estado_fact = "PENDIENTE ENVIO";
-                                //             break;
-                                //         case "3":
-                                //             $estado_fact = "RECLAMADA";
-                                //             break;
-                                //         case "6":
-                                //             $estado_fact = "PAGADO ACUERDO";
-                                //             break;
-                                //     }
-                                //     $row_info_rango->ESTADO_FACTURA = $estado_fact;
-                                //     $row_info_rango->OBSERVACIONES =  $row_info_rango->OBSERVACIONES;
-                                //     $row_info_rango->VALOR_RECAUDO = $row_info_recaudo->VALOR_RECAUDO;
-                                //     $row_info_rango->CC_VENCIDAS =  $row_info_rango->CC_VENCIDAS;
-                                //     $row_info_rango->FECHA_PAGO_BITACORA = $row_info_recaudo->FECHA_PAGO_BITACORA;
-                                //     $row_info_rango->FECHA_CREACION_BITACORA = $row_info_recaudo->FECHA_CREACION;
-                                //     switch ($row_info_recaudo->ESTADO_RECAUDO) {
-                                //         case "1":
-                                //             $estado = "ENTREGADO";
-                                //             break;
-                                //         case "2":
-                                //             $estado = "PENDIENTE ENVIO";
-                                //             break;
-                                //         case "3":
-                                //             $estado = "RECLAMADA";
-                                //             break;
-                                //         case "4":
-                                //             $estado = "PAGADA";
-                                //             break;
-                                //         case "5":
-                                //             $estado = "PAGO PARCIAL";
-                                //             break;
-                                //         case "6":
-                                //             $estado = "PAGADO ACUERDO";
-                                //             break;
-                                //     }
-                                //     $row_info_rango->ESTADO_RECAUDO = $estado;
-                                //     $row_info_rango->OBSERV_RECA = $row_info_recaudo->OBSERVACIONES;
-                                $first = false;
-                            } else {
-                                echo ' valor recaudo 2: ' . $row_info_recaudo->VALOR_RECAUDO;
-                                echo ' fact: ' . $row_info_rango->FACTURA;
-                                //     $row_info_rango->DEPARTAMENTO = $row_info_rango->DEPARTAMENTO;
-                                //     $row_info_rango->MUNICIPIO = $row_info_rango->MUNICIPIO;
-                                //     $row_info_rango->FACTURA = $row_info_rango->FACTURA;
-                                //     $row_info_rango->VALOR_FACTURA = 0;
-                                //     $row_info_rango->FECHA_FACTURA = '';
-                                //     $row_info_rango->FECHA_ENTREGA = '';
-                                //     $row_info_rango->FECHA_VENCIMIENTO = '';
-                                //     $row_info_rango->PERIODO = '';
-                                //     $row_info_rango->ESTADO_FACTURA = '';
-                                //     $row_info_rango->OBSERVACIONES = '';
-                                //     $row_info_rango->VALOR_RECAUDO = $row_info_recaudo->VALOR_RECAUDO;
-                                //     $row_info_rango->CC_VENCIDAS = '';
-                                //     $row_info_rango->FECHA_PAGO_BITACORA = $row_info_recaudo->FECHA_PAGO_BITACORA;
-                                //     switch ($row_info_recaudo->ESTADO_RECAUDO) {
-                                //         case "1":
-                                //             $estado = "ENTREGADO";
-                                //             break;
-                                //         case "2":
-                                //             $estado = "PENDIENTE ENVIO";
-                                //             break;
-                                //         case "3":
-                                //             $estado = "RECLAMADA";
-                                //             break;
-                                //         case "4":
-                                //             $estado = "PAGADA";
-                                //             break;
-                                //         case "5":
-                                //             $estado = "PAGO PARCIAL";
-                                //             break;
-                                //         case "6":
-                                //             $estado = "PAGADO ACUERDO";
-                                //             break;
-                                //     }
-                                //     $row_info_rango->ESTADO_RECAUDO = $estado;
-                                //     $row_info_rango->OBSERV_RECA = $row_info_recaudo->OBSERVACIONES;
-                                $first = false;
-                            }
-                            continue;
-                        }
-                        // End foreach
-                    }
-                    // when don't exist data in recaudo
-                    else {
-                        $row_info_rango->DEPARTAMENTO = $row_info_rango->DEPARTAMENTO;
-                        $row_info_rango->MUNICIPIO = $row_info_rango->MUNICIPIO;
-                        $row_info_rango->FACTURA = $row_info_rango->FACTURA;
-                        $row_info_rango->VALOR_FACTURA = $row_info_rango->VALOR_FACTURA;
-                        $row_info_rango->FECHA_FACTURA = $row_info_rango->FECHA_FACTURA;
-                        $row_info_rango->FECHA_ENTREGA = $row_info_rango->FECHA_ENTREGA;
-                        $row_info_rango->FECHA_VENCIMIENTO = $row_info_rango->FECHA_VENCIMIENTO;
-                        $row_info_rango->PERIODO = $row_info_rango->PERIODO;
-                        $row_info_rango->ESTADO_FACTURA = '';
-                        $row_info_rango->OBSERVACIONES = $row_info_rango->OBSERVACIONES;
-                        $row_info_rango->VALOR_RECAUDO = 0;
-                        $row_info_rango->CC_VENCIDAS = $row_info_rango->CC_VENCIDAS;
-                        $row_info_rango->FECHA_PAGO_BITACORA = '';
-                        $row_info_rango->ESTADO_RECAUDO = $estado;
-                        $row_info_rango->OBSERV_RECA =  '';
-                        $sw = 1;
-                    }
-                    unset($row_info_rango->ID_FACTURACION);
-                    unset($row_info_rango->ESTADO_FACT_ID);
-                }
-                // End foreach data
-
-                // $mySpreadsheet = new \PhpOffice\PhpSpreadsheet\Spreadsheet();
-                // // delete the default active sheet
-                // $mySpreadsheet->removeSheetByIndex(0);
-                // $worksheet1 = new \PhpOffice\PhpSpreadsheet\Worksheet\Worksheet($mySpreadsheet, 'Reporte Aportes Municipales - R');
-                // $mySpreadsheet->addSheet($worksheet1);
-
-                // $data_head = [
-                //     'DEPARTAMENTO', 'MUNICIPIO', 'C. COBRO', 'VALOR C.C.',
-                //     'FECHA C.C.', 'FECHA ENTREGA', 'FECHA VENCIMIENTO', 'PERIODO',
-                //     'ESTADO C.C.', 'OBSERV. C.C.', 'VALOR RECAUDO', 'C.C. VENCIDAS',
-                //     'FECHA RECA. BITACORA', 'FECHA CREACION RECA.', 'ESTADO RECAUDO',
-                //     'OBSERV. RECAUDO'
-                // ];
-                // // transform array to 2D array
-                // $dataArray = json_decode(json_encode($data), true);
-                // $data = array_map(function ($row) {
-                //     return array_values((array)$row);
-                // }, $dataArray);
-                // array_unshift($data, $data_head);
-                // $worksheet1->fromArray($data, null, 'A1');
-                // $worksheets = [$worksheet1];
-
-                // // adjust autosize
-                // foreach ($worksheets as $worksheet) {
-                //     foreach ($worksheet->getColumnIterator() as $column) {
-                //         $worksheet->getColumnDimension($column->getColumnIndex())->setAutoSize(true);
-                //     }
-                // }
-
-                // $filename = "Reporte Aportes Municipales - Rango " . $start_date . " & " . $end_date . ".xlsx";
-
-                // // Set the path to the directory where the file will be saved
-                // $directoryPath = public_path('uploads/reports');
-
-                // // Ensure the directory exists, if it doesn't create it
-                // if (!file_exists($directoryPath)) {
-                //     mkdir($directoryPath, 0755, true);
-                // }
-                // // Set the full file path
-                // $filePath = $directoryPath . '/' . $filename;
-                // // ensure the file exists. if exists will deleted it
-                // if (file_exists($filePath)) {
-                //     unlink($filePath);
-                // }
-
-                // // Save to file.
-                // $writer = new \PhpOffice\PhpSpreadsheet\Writer\Xlsx($mySpreadsheet);
-                // $writer->save($filePath);
-
-                // // File is save here: public\uploads\reports\Reporte Operadores - Periodo 202302.xlsx
-                // return response()->download($filePath)->deleteFileAfterSend(true);
                 break;
         }
     }
