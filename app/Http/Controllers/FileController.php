@@ -69,6 +69,9 @@ class FileController extends Controller
                 MV.NOMBRE AS MUNICIPIO,
                 OP.NOMBRE AS OPERADOR,
                 FO.FECHA_FACTURA AS FECHA_FACTURA,
+                DAY(FO.FECHA_FACTURA) AS DIA_F,
+                MONTH(FO.FECHA_FACTURA) AS MES_F,
+                YEAR(FO.FECHA_FACTURA) AS ANO_F,
                 FO.PERIODO_FACTURA AS PERIODO,
                 FO.VALOR_FACTURA AS VALOR_FACTURA,
                 FO.AJUSTE_FACT AS AJUSTE_FACT,
@@ -87,7 +90,10 @@ class FileController extends Controller
                     WHEN RO.ESTADO_RECAUDO = 1 THEN 'PAGADA'
                     WHEN RO.ESTADO_RECAUDO = 1 THEN 'PENDIENTE DE ENVIO'
                 END AS ESTADO_RECA,
-                RO.FECHA_PAGO_BITACORA AS 'FECHA RECA. BITACORA'
+                RO.FECHA_PAGO_BITACORA AS 'FECHA RECA. BITACORA',
+                DAY(RO.FECHA_PAGO_BITACORA) AS DIA_R,
+                MONTH(RO.FECHA_PAGO_BITACORA) AS MES_R,
+                YEAR(RO.FECHA_PAGO_BITACORA) AS ANO_R
                 FROM facturacion_operadores_2 FO
                 LEFT JOIN recaudo_operadores_2 RO ON (FO.ID_FACTURACION = RO.ID_FACTURACION),
                 departamentos_visitas_2 DV,
@@ -100,6 +106,7 @@ class FileController extends Controller
                 AND YEAR(FO.FECHA_FACTURA) = ?
                 AND MONTH(FO.FECHA_FACTURA) = ?
                 ORDER BY DV.NOMBRE, MV.NOMBRE, FO.FECHA_FACTURA DESC", [$id_year, $id_month]);
+
                 $mySpreadsheet = new \PhpOffice\PhpSpreadsheet\Spreadsheet();
 
                 // delete the default active sheet
@@ -112,9 +119,11 @@ class FileController extends Controller
 
                 $data_head = [
                     'DEPARTAMENTO', 'MUNICIPIO', 'OPERADOR', 'FECHA_FACTURA',
+                    'DIA', 'MES', 'AÑO',
                     'PERIODO', 'VALOR_FACTURA', 'AJUSTE_FACT', 'VALOR_RECAUDO',
                     'AJUSTE_RECA', 'VALOR_ENERGIA', 'CUOTA_ENERGIA', 'OTROS_AJUSTES',
-                    'VALOR_FAVOR', 'CONSUMO', 'ESTADO_FACTURA', 'ESTADO RECAUDO', 'FECHA RECA. BITACORA'
+                    'VALOR_FAVOR', 'CONSUMO', 'ESTADO_FACTURA', 'ESTADO RECAUDO', 'FECHA RECA. BITACORA',
+                    'DIA', 'MES', 'AÑO'
                 ];
 
                 $dataArray = json_decode(json_encode($data), true); // convert object to array
@@ -163,6 +172,9 @@ class FileController extends Controller
                     MV.NOMBRE AS MUNICIPIO,
                     OP.NOMBRE AS OPERADOR,
                     FO.FECHA_FACTURA AS FECHA_FACTURA,
+                    DAY(FO.FECHA_FACTURA) AS DIA_F,
+                    MONTH(FO.FECHA_FACTURA) AS MES_F,
+                    YEAR(FO.FECHA_FACTURA) AS ANO_F,
                     FO.PERIODO_FACTURA AS PERIODO,
                     FO.VALOR_FACTURA AS VALOR_FACTURA,
                     FO.AJUSTE_FACT AS AJUSTE_FACT,
@@ -177,7 +189,10 @@ class FileController extends Controller
                 END AS ESTADO_FACTURA,
                 CASE WHEN RO.ESTADO_RECAUDO = 1 THEN 'PENDIENTE' WHEN RO.ESTADO_RECAUDO = 2 THEN 'PENDIENTE DE ENVIO'
                 END AS ESTADO_RECAUDO,
-                RO.FECHA_PAGO_BITACORA AS 'FECHA RECA. BITACORA'
+                RO.FECHA_PAGO_BITACORA AS 'FECHA RECA. BITACORA',
+                DAY(RO.FECHA_PAGO_BITACORA) AS DIA_R,
+                MONTH(RO.FECHA_PAGO_BITACORA) AS MES_R,
+                YEAR(RO.FECHA_PAGO_BITACORA) AS ANO_R
                 FROM
                     facturacion_operadores_2 FO
                 LEFT JOIN recaudo_operadores_2 RO ON FO.ID_FACTURACION = RO.ID_FACTURACION,
@@ -198,9 +213,11 @@ class FileController extends Controller
                 $mySpreadsheet->addSheet($worksheet1, 0);
                 $data_head = [
                     'DEPARTAMENTO', 'MUNICIPIO', 'OPERADOR', 'FECHA_FACTURA',
+                    'DIA', 'MES', 'AÑO',
                     'PERIODO', 'VALOR_FACTURA', 'AJUSTE_FACT', 'VALOR_RECAUDO',
                     'AJUSTE_RECA', 'VALOR_ENERGIA', 'CUOTA_ENERGIA', 'OTROS_AJUSTES',
-                    'VALOR_FAVOR', 'CONSUMO', 'ESTADO_FACTURA', 'ESTADO RECAUDO', 'FECHA RECA. BITACORA'
+                    'VALOR_FAVOR', 'CONSUMO', 'ESTADO_FACTURA', 'ESTADO RECAUDO', 'FECHA RECA. BITACORA',
+                    'DIA', 'MES', 'AÑO'
                 ];
                 $dataArray = json_decode(json_encode($data), true); // convert object to array
                 $data = array_map(function ($row) {
@@ -240,24 +257,30 @@ class FileController extends Controller
                 $id_month = $request->input('id_month');
                 $id_year = $request->input('id_year');
                 $data = DB::select("SELECT DV.NOMBRE AS DEPARTAMENTO,
-                    MV.NOMBRE AS MUNICIPIO,
-                    CO.NOMBRE AS COMERCIALIZADOR,
-                    FC.FECHA_FACTURA AS FECHA_FACTURA,
-                    FC.PERIODO_FACTURA AS PERIODO,
-                    FC.VALOR_FACTURA AS VALOR_FACTURA,
-                    FC.AJUSTE_FACT AS AJUSTE_FACT,
-                    FC.VALOR_RECAUDO AS VALOR_RECAUDO,
-                    FC.AJUSTE_RECA AS AJUSTE_RECA,
-                    FC.VALOR_ENERGIA AS VALOR_ENERGIA,
-                    FC.CUOTA_ENERGIA AS CUOTA_ENERGIA,
-                    FC.OTROS_AJUSTES AS OTROS_AJUSTES,
-                    FC.VALOR_FAVOR AS VALOR_FAVOR,
-                    FC.CONSUMO AS CONSUMO,
+                MV.NOMBRE AS MUNICIPIO,
+                CO.NOMBRE AS COMERCIALIZADOR,
+                FC.FECHA_FACTURA AS FECHA_FACTURA,
+                DAY(FC.FECHA_FACTURA) AS DIA_F,
+                MONTH(FC.FECHA_FACTURA) AS MES_F,
+                YEAR(FC.FECHA_FACTURA) AS ANO_F,
+                FC.PERIODO_FACTURA AS PERIODO,
+                FC.VALOR_FACTURA AS VALOR_FACTURA,
+                FC.AJUSTE_FACT AS AJUSTE_FACT,
+                FC.VALOR_RECAUDO AS VALOR_RECAUDO,
+                FC.AJUSTE_RECA AS AJUSTE_RECA,
+                FC.VALOR_ENERGIA AS VALOR_ENERGIA,
+                FC.CUOTA_ENERGIA AS CUOTA_ENERGIA,
+                FC.OTROS_AJUSTES AS OTROS_AJUSTES,
+                FC.VALOR_FAVOR AS VALOR_FAVOR,
+                FC.CONSUMO AS CONSUMO,
                 CASE WHEN FC.ESTADO_FACTURA = 1 THEN 'PAGADA' WHEN FC.ESTADO_FACTURA = 2 THEN 'PENDIENTE ENVIO'
                 END AS ESTADO_FACTURA,
                 CASE WHEN RC.ESTADO_RECAUDO = 1 THEN 'PAGADA' WHEN RC.ESTADO_RECAUDO = 2 THEN 'PENDIENTE ENVIO'
                 END AS ESTADO_RECAUDO,
-                    RC.FECHA_PAGO_BITACORA AS 'FECHA RECA. BITACORA'
+                    RC.FECHA_PAGO_BITACORA AS 'FECHA RECA. BITACORA',
+                    DAY(RC.FECHA_PAGO_BITACORA) AS DIA_R,
+                    MONTH(RC.FECHA_PAGO_BITACORA) AS MES_R,
+                    YEAR(RC.FECHA_PAGO_BITACORA) AS ANO_R
                 FROM
                     facturacion_comercializadores_2 FC
                 LEFT JOIN recaudo_comercializadores_2 RC ON
@@ -282,9 +305,11 @@ class FileController extends Controller
                 $mySpreadsheet->addSheet($worksheet1, 0);
                 $data_head = [
                     'DEPARTAMENTO', 'MUNICIPIO', 'OPERADOR', 'FECHA_FACTURA',
+                    'DIA', 'MES', 'AÑO',
                     'PERIODO', 'VALOR_FACTURA', 'AJUSTE_FACT', 'VALOR_RECAUDO',
                     'AJUSTE_RECA', 'VALOR_ENERGIA', 'CUOTA_ENERGIA', 'OTROS_AJUSTES',
-                    'VALOR_FAVOR', 'CONSUMO', 'ESTADO_FACTURA', 'ESTADO RECAUDO', 'FECHA RECA. BITACORA'
+                    'VALOR_FAVOR', 'CONSUMO', 'ESTADO_FACTURA', 'ESTADO RECAUDO', 'FECHA RECA. BITACORA',
+                    'DIA', 'MES', 'AÑO'
                 ];
                 $dataArray = json_decode(json_encode($data), true); // convert object to array
                 $data = array_map(function ($row) {
@@ -330,6 +355,9 @@ class FileController extends Controller
                     MV.NOMBRE AS MUNICIPIO,
                     CO.NOMBRE AS COMERCIALIZADOR,
                     FC.FECHA_FACTURA AS FECHA_FACTURA,
+                    DAY(FC.FECHA_FACTURA) AS DIA_F,
+                    MONTH(FC.FECHA_FACTURA) AS MES_F,
+                    YEAR(FC.FECHA_FACTURA) AS ANO_F,
                     FC.PERIODO_FACTURA AS PERIODO,
                     FC.VALOR_FACTURA AS VALOR_FACTURA,
                     FC.AJUSTE_FACT AS AJUSTE_FACT,
@@ -344,7 +372,10 @@ class FileController extends Controller
                 END AS ESTADO_FACTURA,
                 CASE WHEN RC.ESTADO_RECAUDO = 1 THEN 'PAGADA' WHEN RC.ESTADO_RECAUDO = 2 THEN 'PENDIENTE ENVIO'
                 END AS ESTADO_RECAUDO,
-                RC.FECHA_PAGO_BITACORA AS 'FECHA RECA. BITACORA'
+                RC.FECHA_PAGO_BITACORA AS 'FECHA RECA. BITACORA',
+                DAY(RC.FECHA_PAGO_BITACORA) AS DIA_R,
+                MONTH(RC.FECHA_PAGO_BITACORA) AS MES_R,
+                YEAR(RC.FECHA_PAGO_BITACORA) AS ANO_R
                 FROM
                     facturacion_comercializadores_2 FC
                 LEFT JOIN recaudo_comercializadores_2 RC ON
@@ -366,9 +397,11 @@ class FileController extends Controller
                 $mySpreadsheet->addSheet($worksheet1, 0);
                 $data_head = [
                     'DEPARTAMENTO', 'MUNICIPIO', 'OPERADOR', 'FECHA_FACTURA',
+                    'DIA', 'MES', 'AÑO',
                     'PERIODO', 'VALOR_FACTURA', 'AJUSTE_FACT', 'VALOR_RECAUDO',
                     'AJUSTE_RECA', 'VALOR_ENERGIA', 'CUOTA_ENERGIA', 'OTROS_AJUSTES',
-                    'VALOR_FAVOR', 'CONSUMO', 'ESTADO_FACTURA', 'ESTADO RECAUDO', 'FECHA RECA. BITACORA'
+                    'VALOR_FAVOR', 'CONSUMO', 'ESTADO_FACTURA', 'ESTADO RECAUDO', 'FECHA RECA. BITACORA',
+                    'DIA', 'MES', 'AÑO'
                 ];
                 $dataArray = json_decode(json_encode($data), true); // convert object to array
                 $data = array_map(function ($row) {
@@ -425,8 +458,17 @@ class FileController extends Controller
                 FE.VALOR_TARIFA AS VALOR_TARIFA,
                 FE.VALOR_FACTURA AS VALOR_FACTURA,
                 FE.FECHA_FACTURA AS FECHA_FACTURA,
+                DAY(FE.FECHA_FACTURA) AS DIA_F,
+                MONTH(FE.FECHA_FACTURA) AS MES_F,
+                YEAR(FE.FECHA_FACTURA) AS ANO_F,
                 FE.FECHA_ENTREGA AS FECHA_ENTREGA,
+                DAY(FE.FECHA_ENTREGA) AS DIA_E,
+                MONTH(FE.FECHA_ENTREGA) AS MES_E,
+                YEAR(FE.FECHA_ENTREGA) AS ANO_E,
                 FE.FECHA_VENCIMIENTO AS FECHA_VENCIMIENTO,
+                DAY(FE.FECHA_VENCIMIENTO) AS DIA_V,
+                MONTH(FE.FECHA_VENCIMIENTO) AS MES_V,
+                YEAR(FE.FECHA_VENCIMIENTO) AS ANO_V,
                 FE.PERIODO_FACTURA AS PERIODO,
                 CO.NOMBRE AS COMERCIALIZADOR,
                 CASE
@@ -446,7 +488,13 @@ class FileController extends Controller
                 FE.ID_FACTURACION AS ID_FACTURACION,
                 FE.VALOR_LIQ_VENCIDAS AS VALOR_LIQ_VENCIDAS,
                 '' AS FECHA_PAGO_SOPORTE,
+                '' AS DIA_S,
+                '' AS MES_S,
+                '' AS ANO_S,
                 '' AS FECHA_PAGO_BITACORA,
+                '' AS DIA_B,
+                '' AS MES_B,
+                '' AS ANO_B,
                 '' AS ESTADO_RECAUDO,
                 '' AS OBSERV_RECAUDO
                 FROM facturacion_especiales_2 FE
@@ -483,19 +531,36 @@ class FileController extends Controller
                                 $estado = "PAGO PARCIAL";
                                 break;
                         }
-
+                        $ano_s = (int)trim(substr($query_recaudo_especial->FECHA_PAGO_SOPORTE, 0, 4));
+                        $mes_s = (int)trim(substr($query_recaudo_especial->FECHA_PAGO_SOPORTE, 5, 2));
+                        $dia_s = (int)trim(substr($query_recaudo_especial->FECHA_PAGO_SOPORTE, 8, 2));
+                        $ano_b = (int)trim(substr($query_recaudo_especial->FECHA_PAGO_BITACORA, 0, 4));
+                        $mes_b = (int)trim(substr($query_recaudo_especial->FECHA_PAGO_BITACORA, 5, 2));
+                        $dia_b = (int)trim(substr($query_recaudo_especial->FECHA_PAGO_BITACORA, 8, 2));
                         $row->VALOR_RECAUDO = $query_recaudo_especial->VALOR_RECAUDO;
                         $cartera_a_la_fecha = $row->VALOR_FACTURA - $query_recaudo_especial->VALOR_RECAUDO;
                         $row->CARTERA_A_LA_FECHA = $cartera_a_la_fecha;
                         $row->FECHA_PAGO_SOPORTE = $query_recaudo_especial->FECHA_PAGO_SOPORTE;
+                        $row->DIA_S = $dia_s;
+                        $row->MES_S = $mes_s;
+                        $row->ANO_S = $ano_s;
                         $row->FECHA_PAGO_BITACORA = $query_recaudo_especial->FECHA_PAGO_BITACORA;
+                        $row->DIA_B = $dia_b;
+                        $row->MES_B = $mes_b;
+                        $row->ANO_B = $ano_b;
                         $row->ESTADO_RECAUDO = $estado;
                         $row->OBSERV_RECADO = $query_recaudo_especial->OBSERVACIONES;
                     } else {
                         $row->VALOR_RECAUDO = 0;
                         $row->CARTERA_A_LA_FECHA = $row->VALOR_FACTURA - 0;
                         $row->FECHA_PAGO_SOPORTE = '';
+                        $row->DIA_S = '';
+                        $row->MES_S = '';
+                        $row->ANO_S = '';
                         $row->FECHA_PAGO_BITACORA = '';
+                        $row->DIA_B = '';
+                        $row->MES_B = '';
+                        $row->ANO_B = '';
                         $row->ESTADO_RECAUDO = '';
                         $row->OBSERV_RECADO = '';
                     }
@@ -516,10 +581,15 @@ class FileController extends Controller
                     'DEPARTAMENTO', 'MUNICIPIO', 'CONTRIBUYENTE',
                     'NIT', 'TIPO_CLIENTE', 'FACTURA', 'TIPO_FACT',
                     'TARIFA', 'VALOR_TARIFA', 'VALOR_FACTURA', 'FECHA FACTURA',
-                    'FECHA ENTREGA', 'FECHA VENCIMIENTO', 'PERIODO', 'COMERCIALIZADOR',
+                    'DIA', 'MES', 'AÑO',
+                    'FECHA ENTREGA', 'DIA', 'MES', 'AÑO',
+                    'FECHA VENCIMIENTO', 'DIA', 'MES', 'AÑO',
+                    'PERIODO', 'COMERCIALIZADOR',
                     'FACTURADO POR', 'ESTADO FACTURA', 'OBSERV. FACTURA', 'VALOR RECAUDO',
                     'CARTERA A LA FECHA', 'CARTERA VENCIDA', 'FECHA RECA SOPORTE',
-                    'FECHA RECA BITACORA', 'ESTADO RECAUDO', 'OBSERV RECAUDO'
+                    'DIA', 'MES', 'AÑO',
+                    'FECHA RECA BITACORA', 'DIA', 'MES', 'AÑO',
+                    'ESTADO RECAUDO', 'OBSERV RECAUDO'
                 ];
 
                 $dataArray = json_decode(json_encode($data), true);
@@ -580,8 +650,17 @@ class FileController extends Controller
                 FE.VALOR_TARIFA AS VALOR_TARIFA,
                 FE.VALOR_FACTURA AS VALOR_FACTURA,
                 FE.FECHA_FACTURA AS FECHA_FACTURA,
+                DAY(FE.FECHA_FACTURA) AS DIA_F,
+                MONTH(FE.FECHA_FACTURA) AS MES_F,
+                YEAR(FE.FECHA_FACTURA) AS ANO_F,
                 FE.FECHA_ENTREGA AS FECHA_ENTREGA,
+                DAY(FE.FECHA_ENTREGA) AS DIA_E,
+                MONTH(FE.FECHA_ENTREGA) AS MES_E,
+                YEAR(FE.FECHA_ENTREGA) AS ANO_E,
                 FE.FECHA_VENCIMIENTO AS FECHA_VENCIMIENTO,
+                DAY(FE.FECHA_VENCIMIENTO) AS DIA_V,
+                MONTH(FE.FECHA_VENCIMIENTO) AS MES_V,
+                YEAR(FE.FECHA_VENCIMIENTO) AS ANO_V,
                 FE.PERIODO_FACTURA AS PERIODO,
                 CO.NOMBRE AS COMERCIALIZADOR,
                 CASE
@@ -601,7 +680,13 @@ class FileController extends Controller
                 FE.ID_FACTURACION AS ID_FACTURACION,
                 FE.VALOR_LIQ_VENCIDAS AS VALOR_LIQ_VENCIDAS,
                 '' AS FECHA_PAGO_SOPORTE,
+                '' AS DIA_S,
+                '' AS MES_S,
+                '' AS ANO_S,
                 '' AS FECHA_PAGO_BITACORA,
+                '' AS DIA_B,
+                '' AS MES_B,
+                '' AS ANO_B,
                 '' AS ESTADO_RECAUDO,
                 '' AS OBSERV_RECAUDO
                     FROM facturacion_especiales_2 FE
@@ -643,18 +728,37 @@ class FileController extends Controller
                                 break;
                         }
 
+                        $ano_s = (int)trim(substr($query_recaudo_especial->FECHA_PAGO_SOPORTE, 0, 4));
+                        $mes_s = (int)trim(substr($query_recaudo_especial->FECHA_PAGO_SOPORTE, 5, 2));
+                        $dia_s = (int)trim(substr($query_recaudo_especial->FECHA_PAGO_SOPORTE, 8, 2));
+                        $ano_b = (int)trim(substr($query_recaudo_especial->FECHA_PAGO_BITACORA, 0, 4));
+                        $mes_b = (int)trim(substr($query_recaudo_especial->FECHA_PAGO_BITACORA, 5, 2));
+                        $dia_b = (int)trim(substr($query_recaudo_especial->FECHA_PAGO_BITACORA, 8, 2));
+
                         $row->VALOR_RECAUDO = $query_recaudo_especial->VALOR_RECAUDO;
                         $cartera_a_la_fecha = $row->VALOR_FACTURA - $query_recaudo_especial->VALOR_RECAUDO;
                         $row->CARTERA_A_LA_FECHA = $cartera_a_la_fecha;
                         $row->FECHA_PAGO_SOPORTE = $query_recaudo_especial->FECHA_PAGO_SOPORTE;
+                        $row->DIA_S = $dia_s;
+                        $row->MES_S = $mes_s;
+                        $row->ANO_S = $ano_s;
                         $row->FECHA_PAGO_BITACORA = $query_recaudo_especial->FECHA_PAGO_BITACORA;
+                        $row->DIA_B = $dia_b;
+                        $row->MES_B = $mes_b;
+                        $row->ANO_B = $ano_b;
                         $row->ESTADO_RECAUDO = $estado;
                         $row->OBSERV_RECADO = $query_recaudo_especial->OBSERVACIONES;
                     } else {
                         $row->VALOR_RECAUDO = 0;
                         $row->CARTERA_A_LA_FECHA = $row->VALOR_FACTURA - 0;
                         $row->FECHA_PAGO_SOPORTE = '';
+                        $row->DIA_S = '';
+                        $row->MES_S = '';
+                        $row->ANO_S = '';
                         $row->FECHA_PAGO_BITACORA = '';
+                        $row->DIA_B = '';
+                        $row->MES_B = '';
+                        $row->ANO_B = '';
                         $row->ESTADO_RECAUDO = '';
                         $row->OBSERV_RECADO = '';
                     }
@@ -674,10 +778,15 @@ class FileController extends Controller
                     'DEPARTAMENTO', 'MUNICIPIO', 'CONTRIBUYENTE',
                     'NIT', 'TIPO_CLIENTE', 'FACTURA', 'TIPO_FACT',
                     'TARIFA', 'VALOR_TARIFA', 'VALOR_FACTURA', 'FECHA FACTURA',
-                    'FECHA ENTREGA', 'FECHA VENCIMIENTO', 'PERIODO', 'COMERCIALIZADOR',
+                    'DIA', 'MES', 'AÑO',
+                    'FECHA ENTREGA', 'DIA', 'MES', 'AÑO',
+                    'FECHA VENCIMIENTO', 'DIA', 'MES', 'AÑO',
+                    'PERIODO', 'COMERCIALIZADOR',
                     'FACTURADO POR', 'ESTADO FACTURA', 'OBSERV. FACTURA', 'VALOR RECAUDO',
                     'CARTERA A LA FECHA', 'CARTERA VENCIDA', 'FECHA RECA SOPORTE',
-                    'FECHA RECA BITACORA', 'ESTADO RECAUDO', 'OBSERV RECAUDO'
+                    'DIA', 'MES', 'AÑO',
+                    'FECHA RECA BITACORA', 'DIA', 'MES', 'AÑO',
+                    'ESTADO RECAUDO', 'OBSERV RECAUDO'
                 ];
                 // transform to 2D array
                 $dataArray = json_decode(json_encode($data), true);

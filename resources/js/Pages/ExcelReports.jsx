@@ -174,7 +174,7 @@ export default function Dashboard() {
     const generateReportEspecialesByPeriod = (event) => {
         event.preventDefault()
         const id_year = '2022'
-        const id_month = '08'
+        const id_month = '12'
         const report_code = 5
         const filename = "Reporte Cliente Especiales - Periodo " + id_year + id_month + ".xlsx";
         //Reporte Cliente Especiales - Periodo 202301.xlsx
