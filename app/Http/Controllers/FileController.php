@@ -851,8 +851,17 @@ class FileController extends Controller
                 FE.VALOR_TARIFA AS VALOR_TARIFA,
                 FE.VALOR_FACTURA AS VALOR_FACTURA,
                 FE.FECHA_FACTURA AS FECHA_FACTURA,
+                DAY(FE.FECHA_FACTURA) AS DIA_F,
+                MONTH(FE.FECHA_FACTURA) AS MES_F,
+                YEAR(FE.FECHA_FACTURA) AS ANO_F,
                 FE.FECHA_ENTREGA AS FECHA_ENTREGA,
+                DAY(FE.FECHA_ENTREGA) AS DIA_E,
+                MONTH(FE.FECHA_ENTREGA) AS MES_E,
+                YEAR(FE.FECHA_ENTREGA) AS ANO_E,
                 FE.FECHA_VENCIMIENTO AS FECHA_VENCIMIENTO,
+                DAY(FE.FECHA_VENCIMIENTO) AS DIA_V,
+                MONTH(FE.FECHA_VENCIMIENTO) AS MES_V,
+                YEAR(FE.FECHA_VENCIMIENTO) AS ANO_V,
                 FE.PERIODO_FACTURA AS PERIODO,
                 CO.NOMBRE AS COMERCIALIZADOR,
                 CASE
@@ -872,7 +881,13 @@ class FileController extends Controller
                 FE.ID_FACTURACION AS ID_FACTURACION,
                 FE.VALOR_LIQ_VENCIDAS AS VALOR_LIQ_VENCIDAS,
                 '' AS FECHA_PAGO_SOPORTE,
+                '' AS DIA_S,
+                '' AS MES_S,
+                '' AS ANO_S,
                 '' AS FECHA_PAGO_BITACORA,
+                '' AS DIA_B,
+                '' AS MES_B,
+                '' AS ANO_B,
                 '' AS ESTADO_RECAUDO,
                 '' AS OBSERV_RECAUDO
                     FROM facturacion_especiales_2 FE
@@ -912,19 +927,37 @@ class FileController extends Controller
                                 $estado = "PAGO PARCIAL";
                                 break;
                         }
+                        $ano_s = (int)trim(substr($query_recaudo_especial->FECHA_PAGO_SOPORTE, 0, 4));
+                        $mes_s = (int)trim(substr($query_recaudo_especial->FECHA_PAGO_SOPORTE, 5, 2));
+                        $dia_s = (int)trim(substr($query_recaudo_especial->FECHA_PAGO_SOPORTE, 8, 2));
+                        $ano_b = (int)trim(substr($query_recaudo_especial->FECHA_PAGO_BITACORA, 0, 4));
+                        $mes_b = (int)trim(substr($query_recaudo_especial->FECHA_PAGO_BITACORA, 5, 2));
+                        $dia_b = (int)trim(substr($query_recaudo_especial->FECHA_PAGO_BITACORA, 8, 2));
 
                         $row->VALOR_RECAUDO = $query_recaudo_especial->VALOR_RECAUDO;
                         $cartera_a_la_fecha = $row->VALOR_FACTURA - $query_recaudo_especial->VALOR_RECAUDO;
                         $row->CARTERA_A_LA_FECHA = $cartera_a_la_fecha;
                         $row->FECHA_PAGO_SOPORTE = $query_recaudo_especial->FECHA_PAGO_SOPORTE;
+                        $row->DIA_S = $dia_s;
+                        $row->MES_S = $mes_s;
+                        $row->ANO_S = $ano_s;
                         $row->FECHA_PAGO_BITACORA = $query_recaudo_especial->FECHA_PAGO_BITACORA;
+                        $row->DIA_B = $dia_b;
+                        $row->MES_B = $mes_b;
+                        $row->ANO_B = $ano_b;
                         $row->ESTADO_RECAUDO = $estado;
                         $row->OBSERV_RECADO = $query_recaudo_especial->OBSERVACIONES;
                     } else {
                         $row->VALOR_RECAUDO = 0;
                         $row->CARTERA_A_LA_FECHA = $row->VALOR_FACTURA - 0;
                         $row->FECHA_PAGO_SOPORTE = '';
+                        $row->DIA_S = '';
+                        $row->MES_S = '';
+                        $row->ANO_S = '';
                         $row->FECHA_PAGO_BITACORA = '';
+                        $row->DIA_B = '';
+                        $row->MES_B = '';
+                        $row->ANO_B = '';
                         $row->ESTADO_RECAUDO = '';
                         $row->OBSERV_RECADO = '';
                     }
@@ -944,10 +977,15 @@ class FileController extends Controller
                     'DEPARTAMENTO', 'MUNICIPIO', 'CONTRIBUYENTE',
                     'NIT', 'TIPO_CLIENTE', 'FACTURA', 'TIPO_FACT',
                     'TARIFA', 'VALOR_TARIFA', 'VALOR_FACTURA', 'FECHA FACTURA',
-                    'FECHA ENTREGA', 'FECHA VENCIMIENTO', 'PERIODO', 'COMERCIALIZADOR',
+                    'DIA', 'MES', 'AÑO',
+                    'FECHA ENTREGA', 'DIA', 'MES', 'AÑO',
+                    'FECHA VENCIMIENTO', 'DIA', 'MES', 'AÑO',
+                    'PERIODO', 'COMERCIALIZADOR',
                     'FACTURADO POR', 'ESTADO FACTURA', 'OBSERV. FACTURA', 'VALOR RECAUDO',
                     'CARTERA A LA FECHA', 'CARTERA VENCIDA', 'FECHA RECA SOPORTE',
-                    'FECHA RECA BITACORA', 'ESTADO RECAUDO', 'OBSERV RECAUDO'
+                    'DIA', 'MES', 'AÑO',
+                    'FECHA RECA BITACORA', 'DIA', 'MES', 'AÑO',
+                    'ESTADO RECAUDO', 'OBSERV RECAUDO'
                 ];
 
                 // transform to 2D array
@@ -1024,7 +1062,13 @@ class FileController extends Controller
                     ELSE 'AL DIA'
 		        END AS EDAD_CARTERA,
                 FE.FECHA_ENTREGA AS FECHA_ENTREGA,
+                DAY(FE.FECHA_ENTREGA) AS DIA_E,
+                MONTH(FE.FECHA_ENTREGA) AS MES_E,
+                YEAR(FE.FECHA_ENTREGA) AS ANO_E,
                 FE.FECHA_VENCIMIENTO AS FECHA_VENCIMIENTO,
+                DAY(FE.FECHA_VENCIMIENTO) AS DIA_V,
+                MONTH(FE.FECHA_VENCIMIENTO) AS MES_V,
+                YEAR(FE.FECHA_VENCIMIENTO) AS ANO_V,
                 FE.PERIODO_FACTURA AS PERIODO,
                 CO.NOMBRE AS COMERCIALIZADOR,
                 CASE
@@ -1044,10 +1088,13 @@ class FileController extends Controller
                 FE.ID_FACTURACION AS ID_FACTURACION,
                 FE.VALOR_LIQ_VENCIDAS AS VALOR_LIQ_VENCIDAS,
                 '' AS FECHA_PAGO_SOPORTE,
+                '' AS DIA_S,
+                '' AS MES_S,
+                '' AS ANO_S,
                 '' AS FECHA_PAGO_BITACORA,
-                '' AS DIA_RECA_BITA,
-                '' AS MES_RECA_BITA,
-                '' AS ANO_RECA_BITA,
+                '' AS DIA_B,
+                '' AS MES_B,
+                '' AS ANO_B,
                 '' AS ESTADO_RECAUDO,
                 '' AS OBSERV_RECAUDO
                     FROM facturacion_especiales_2 FE
@@ -1085,22 +1132,41 @@ class FileController extends Controller
                                 $estado = "PAGO PARCIAL";
                                 break;
                         }
+                        $ano_s = (int)trim(substr($query_recaudo_especial->FECHA_PAGO_SOPORTE, 0, 4));
+                        $mes_s = (int)trim(substr($query_recaudo_especial->FECHA_PAGO_SOPORTE, 5, 2));
+                        $dia_s = (int)trim(substr($query_recaudo_especial->FECHA_PAGO_SOPORTE, 8, 2));
+                        $ano_b = (int)trim(substr($query_recaudo_especial->FECHA_PAGO_BITACORA, 0, 4));
+                        $mes_b = (int)trim(substr($query_recaudo_especial->FECHA_PAGO_BITACORA, 5, 2));
+                        $dia_b = (int)trim(substr($query_recaudo_especial->FECHA_PAGO_BITACORA, 8, 2));
+
 
                         $row->VALOR_RECAUDO = $query_recaudo_especial->VALOR_RECAUDO;
                         $cartera_a_la_fecha = $row->VALOR_FACTURA - $query_recaudo_especial->VALOR_RECAUDO;
                         $row->CARTERA_A_LA_FECHA = $cartera_a_la_fecha;
                         $row->FECHA_PAGO_SOPORTE = $query_recaudo_especial->FECHA_PAGO_SOPORTE;
+                        $row->DIA_S = $dia_s;
+                        $row->MES_S = $mes_s;
+                        $row->ANO_S = $ano_s;
                         $row->FECHA_PAGO_BITACORA = $query_recaudo_especial->FECHA_PAGO_BITACORA;
-                        $row->DIA_RECA_BITA = (int)substr($query_recaudo_especial->FECHA_PAGO_BITACORA, 8, 2);
-                        $row->MES_RECA_BITA = (int)substr($query_recaudo_especial->FECHA_PAGO_BITACORA, 5, 2);
-                        $row->ANO_RECA_BITA = (int)substr($query_recaudo_especial->FECHA_PAGO_BITACORA, 0, 4);
+                        $row->DIA_B = $dia_b;
+                        $row->MES_B = $mes_b;
+                        $row->ANO_B = $ano_b;
+                        // $row->DIA_RECA_BITA = (int)substr($query_recaudo_especial->FECHA_PAGO_BITACORA, 8, 2);
+                        // $row->MES_RECA_BITA = (int)substr($query_recaudo_especial->FECHA_PAGO_BITACORA, 5, 2);
+                        // $row->ANO_RECA_BITA = (int)substr($query_recaudo_especial->FECHA_PAGO_BITACORA, 0, 4);
                         $row->ESTADO_RECAUDO = $estado;
                         $row->OBSERV_RECADO = $query_recaudo_especial->OBSERVACIONES;
                     } else {
                         $row->VALOR_RECAUDO = 0;
                         $row->CARTERA_A_LA_FECHA = $row->VALOR_FACTURA - 0;
                         $row->FECHA_PAGO_SOPORTE = '';
+                        $row->DIA_S = '';
+                        $row->MES_S = '';
+                        $row->ANO_S = '';
                         $row->FECHA_PAGO_BITACORA = '';
+                        $row->DIA_B = '';
+                        $row->MES_B = '';
+                        $row->ANO_B = '';
                         $row->ESTADO_RECAUDO = '';
                         $row->OBSERV_RECADO = '';
                     }
@@ -1118,12 +1184,15 @@ class FileController extends Controller
                     'DEPARTAMENTO', 'MUNICIPIO', 'CONTRIBUYENTE',
                     'NIT', 'TIPO_CLIENTE', 'FACTURA', 'TIPO_FACT',
                     'TARIFA', 'VALOR_TARIFA', 'VALOR_FACTURA', 'FECHA FACTURA',
-                    'DIA FACTURA', 'MES FACTURA', 'ANO FACTURA', 'DIA MORA', 'EDAD CARTERA',
-                    'FECHA ENTREGA', 'FECHA VENCIMIENTO', 'PERIODO', 'COMERCIALIZADOR',
+                    'DIA', 'MES', 'AÑO', 'DIA MORA', 'EDAD CARTERA',
+                    'FECHA ENTREGA', 'DIA', 'MES', 'AÑO',
+                    'FECHA VENCIMIENTO', 'DIA', 'MES', 'AÑO',
+                    'PERIODO', 'COMERCIALIZADOR',
                     'FACTURADO POR', 'ESTADO FACTURA', 'OBSERV. FACTURA', 'VALOR RECAUDO',
                     'CARTERA A LA FECHA', 'CARTERA VENCIDA', 'FECHA RECA SOPORTE',
-                    'FECHA RECA BITACORA', 'DIA RECA. BITACORA', 'MES RECA. BITACORA',
-                    'ANO RECA. BITACORA', 'ESTADO RECAUDO', 'OBSERV RECAUDO'
+                    'DIA', 'MES', 'AÑO',
+                    'FECHA RECA BITACORA', 'DIA', 'MES',
+                    'AÑO', 'ESTADO RECAUDO', 'OBSERV RECAUDO'
                 ];
 
                 // transform to 2D array
@@ -1240,8 +1309,17 @@ class FileController extends Controller
                 FM.CONSECUTIVO_FACT AS FACTURA,
                 FM.VALOR_FACTURA AS VALOR_FACTURA,
                 FM.FECHA_FACTURA AS FECHA_FACTURA,
+                DAY(FM.FECHA_FACTURA) AS DIA_F,
+                MONTH(FM.FECHA_FACTURA) AS MES_F,
+                YEAR(FM.FECHA_FACTURA) AS ANO_F,
                 FM.FECHA_ENTREGA AS FECHA_ENTREGA,
+                DAY(FM.FECHA_ENTREGA) AS DIA_E,
+                MONTH(FM.FECHA_ENTREGA) AS MES_E,
+                YEAR(FM.FECHA_ENTREGA) AS ANO_E,
                 FM.FECHA_VENCIMIENTO AS FECHA_VENCIMIENTO,
+                DAY(FM.FECHA_VENCIMIENTO) AS DIA_V,
+                MONTH(FM.FECHA_VENCIMIENTO) AS MES_V,
+                YEAR(FM.FECHA_VENCIMIENTO) AS ANO_V,
                 FM.PERIODO_FACTURA AS PERIODO,
                 FM.ESTADO_FACTURA AS ESTADO_FACT_ID,
                 '' AS ESTADO_FACTURA,
@@ -1249,7 +1327,13 @@ class FileController extends Controller
                 0 AS VALOR_RECAUDO,
                 FM.NO_CC_VENCIDAS AS CC_VENCIDAS,
                 '' AS FECHA_PAGO_BITACORA,
+                '' AS DIA_B,
+                '' AS MES_B,
+                '' AS ANO_B,
                 '' AS FECHA_CREACION_BITACORA,
+                '' AS DIA_C,
+                '' AS MES_C,
+                '' AS ANO_C,
                 '' AS ESTADO_RECAUDO,
                 '' AS OBSERV_RECA,
                 FM.ID_FACTURACION
@@ -1274,14 +1358,31 @@ class FileController extends Controller
                     if (count($query_recaudo) > 0) {
                         foreach ($query_recaudo as $row_recaudo) {
                             $obj = clone $row;
+
+                            $ano_c = (int)trim(substr($row_recaudo->FECHA_CREACION, 0, 4));
+                            $mes_c = (int)trim(substr($row_recaudo->FECHA_CREACION, 5, 2));
+                            $dia_c = (int)trim(substr($row_recaudo->FECHA_CREACION, 8, 2));
+                            $ano_b = (int)trim(substr($row_recaudo->FECHA_PAGO_BITACORA, 0, 4));
+                            $mes_b = (int)trim(substr($row_recaudo->FECHA_PAGO_BITACORA, 5, 2));
+                            $dia_b = (int)trim(substr($row_recaudo->FECHA_PAGO_BITACORA, 8, 2));
+
                             if ($sw == 0) {
                                 $obj->DEPARTAMENTO = $row->DEPARTAMENTO;
                                 $obj->MUNICIPIO = $row->MUNICIPIO;
                                 $obj->FACTURA = $row->FACTURA;
                                 $obj->VALOR_FACTURA = $row->VALOR_FACTURA;
                                 $obj->FECHA_FACTURA = $row->FECHA_FACTURA;
+                                $obj->DIA_F = $row->DIA_F;
+                                $obj->MES_F = $row->MES_F;
+                                $obj->ANO_F = $row->ANO_F;
                                 $obj->FECHA_ENTREGA = $row->FECHA_ENTREGA;
+                                $obj->DIA_E = $row->DIA_E;
+                                $obj->MES_E = $row->MES_E;
+                                $obj->ANO_E = $row->ANO_E;
                                 $obj->FECHA_VENCIMIENTO = $row->FECHA_VENCIMIENTO;
+                                $obj->DIA_V = $row->DIA_V;
+                                $obj->MES_V = $row->MES_V;
+                                $obj->ANO_V = $row->ANO_V;
                                 $obj->PERIODO = $row->PERIODO;
                                 switch ($stado_fact_id) {
                                     case "1":
@@ -1297,12 +1398,20 @@ class FileController extends Controller
                                         $estado_fact = "PAGADO ACUERDO";
                                         break;
                                 }
+
+
                                 $obj->ESTADO_FACTURA = $estado_fact;
                                 $obj->OBSERVACIONES =  $row->OBSERVACIONES;
                                 $obj->VALOR_RECAUDO = $row_recaudo->VALOR_RECAUDO;
                                 $obj->CC_VENCIDAS =  $row->CC_VENCIDAS;
                                 $obj->FECHA_PAGO_BITACORA = $row_recaudo->FECHA_PAGO_BITACORA;
+                                $obj->DIA_B = $dia_b;
+                                $obj->MES_B = $mes_b;
+                                $obj->ANO_B = $ano_b;
                                 $obj->FECHA_CREACION_BITACORA = $row_recaudo->FECHA_CREACION;
+                                $obj->DIA_C = $dia_c;
+                                $obj->MES_C = $mes_c;
+                                $obj->ANO_C = $ano_c;
                                 switch ($row_recaudo->ESTADO_RECAUDO) {
                                     case "1":
                                         $estado = "ENTREGADO";
@@ -1333,8 +1442,17 @@ class FileController extends Controller
                                 $obj->FACTURA = $row->FACTURA;
                                 $obj->VALOR_FACTURA = 0;
                                 $obj->FECHA_FACTURA = $row->FECHA_FACTURA;
+                                $obj->DIA_F = $row->DIA_F;
+                                $obj->MES_F = $row->MES_F;
+                                $obj->ANO_F = $row->ANO_F;
                                 $obj->FECHA_ENTREGA = $row->FECHA_ENTREGA;
+                                $obj->DIA_E = $row->DIA_E;
+                                $obj->MES_E = $row->MES_E;
+                                $obj->ANO_E = $row->ANO_E;
                                 $obj->FECHA_VENCIMIENTO = $row->FECHA_VENCIMIENTO;
+                                $obj->DIA_V = $row->DIA_V;
+                                $obj->MES_V = $row->MES_V;
+                                $obj->ANO_V = $row->ANO_V;
                                 $obj->PERIODO = $row->PERIODO;
                                 switch ($stado_fact_id) {
                                     case "1":
@@ -1355,7 +1473,13 @@ class FileController extends Controller
                                 $obj->VALOR_RECAUDO = $row_recaudo->VALOR_RECAUDO;
                                 $obj->CC_VENCIDAS = $row->CC_VENCIDAS;
                                 $obj->FECHA_PAGO_BITACORA = $row_recaudo->FECHA_PAGO_BITACORA;
+                                $obj->DIA_B = $dia_b;
+                                $obj->MES_B = $mes_b;
+                                $obj->ANO_B = $ano_b;
                                 $obj->FECHA_CREACION_BITACORA = $row_recaudo->FECHA_CREACION;
+                                $obj->DIA_C = $dia_c;
+                                $obj->MES_C = $mes_c;
+                                $obj->ANO_C = $ano_c;
                                 switch ($row_recaudo->ESTADO_RECAUDO) {
                                     case "1":
                                         $estado = "ENTREGADO";
@@ -1388,8 +1512,17 @@ class FileController extends Controller
                         $obj->FACTURA = $row->FACTURA;
                         $obj->VALOR_FACTURA = $row->VALOR_FACTURA;
                         $obj->FECHA_FACTURA = $row->FECHA_FACTURA;
+                        $obj->DIA_F = $row->DIA_F;
+                        $obj->MES_F = $row->MES_F;
+                        $obj->ANO_F = $row->ANO_F;
                         $obj->FECHA_ENTREGA = $row->FECHA_ENTREGA;
+                        $obj->DIA_E = $row->DIA_E;
+                        $obj->MES_E = $row->MES_E;
+                        $obj->ANO_E = $row->ANO_E;
                         $obj->FECHA_VENCIMIENTO = $row->FECHA_VENCIMIENTO;
+                        $obj->DIA_V = $row->DIA_V;
+                        $obj->MES_V = $row->MES_V;
+                        $obj->ANO_V = $row->ANO_V;
                         $obj->PERIODO = $row->PERIODO;
                         switch ($stado_fact_id) {
                             case "1":
@@ -1410,7 +1543,13 @@ class FileController extends Controller
                         $obj->VALOR_RECAUDO = 0;
                         $obj->CC_VENCIDAS = $row->CC_VENCIDAS;
                         $obj->FECHA_PAGO_BITACORA = '';
+                        $obj->DIA_B = '';
+                        $obj->MES_B = '';
+                        $obj->ANO_B = '';
                         $obj->FECHA_CREACION_BITACORA = '';
+                        $obj->DIA_C = '';
+                        $obj->MES_C = '';
+                        $obj->ANO_C = '';
                         $obj->ESTADO_RECAUDO = $estado;
                         $obj->OBSERV_RECA =  '';
                         $newData[] = $obj;
@@ -1427,10 +1566,13 @@ class FileController extends Controller
 
                 $data_head = [
                     'DEPARTAMENTO', 'MUNICIPIO', 'C. COBRO', 'VALOR C.C.',
-                    'FECHA C.C.', 'FECHA ENTREGA', 'FECHA VENCIMIENTO', 'PERIODO',
-                    'ESTADO C.C.', 'OBSERV. C.C.', 'VALOR RECAUDO', 'C.C. VENCIDAS',
-                    'FECHA RECA. BITACORA', 'FECHA CREACION RECA.', 'ESTADO RECAUDO',
-                    'OBSERV. RECAUDO'
+                    'FECHA C.C.', 'DIA', 'MES', 'AÑO',
+                    'FECHA ENTREGA', 'DIA', 'MES', 'AÑO',
+                    'FECHA VENCIMIENTO', 'DIA', 'MES', 'AÑO',
+                    'PERIODO', 'ESTADO C.C.', 'OBSERV. C.C.', 'VALOR RECAUDO', 'C.C. VENCIDAS',
+                    'FECHA RECA. BITACORA', 'DIA', 'MES', 'AÑO',
+                    'FECHA CREACION RECA.', 'DIA', 'MES', 'AÑO',
+                    'ESTADO RECAUDO', 'OBSERV. RECAUDO'
                 ];
                 // transform array to 2D array
                 $dataArray = json_decode(json_encode($newData), true);
@@ -1487,8 +1629,17 @@ class FileController extends Controller
                 FM.CONSECUTIVO_FACT AS FACTURA,
                 FM.VALOR_FACTURA AS VALOR_FACTURA,
                 FM.FECHA_FACTURA AS FECHA_FACTURA,
+                DAY(FM.FECHA_FACTURA) AS DIA_F,
+                MONTH(FM.FECHA_FACTURA) AS MES_F,
+                YEAR(FM.FECHA_FACTURA) AS ANO_F,
                 FM.FECHA_ENTREGA AS FECHA_ENTREGA,
+                DAY(FM.FECHA_ENTREGA) AS DIA_E,
+                MONTH(FM.FECHA_ENTREGA) AS MES_E,
+                YEAR(FM.FECHA_ENTREGA) AS ANO_E,
                 FM.FECHA_VENCIMIENTO AS FECHA_VENCIMIENTO,
+                DAY(FM.FECHA_VENCIMIENTO) AS DIA_V,
+                MONTH(FM.FECHA_VENCIMIENTO) AS MES_V,
+                YEAR(FM.FECHA_VENCIMIENTO) AS ANO_V,
                 FM.PERIODO_FACTURA AS PERIODO,
                 FM.ESTADO_FACTURA AS ESTADO_FACT_ID,
                 '' AS ESTADO_FACTURA,
@@ -1496,7 +1647,13 @@ class FileController extends Controller
                 0 AS VALOR_RECAUDO,
                 FM.NO_CC_VENCIDAS AS CC_VENCIDAS,
                 '' AS FECHA_PAGO_BITACORA,
+                '' AS DIA_B,
+                '' AS MES_B,
+                '' AS ANO_B,
                 '' AS FECHA_CREACION_BITACORA,
+                '' AS DIA_C,
+                '' AS MES_C,
+                '' AS ANO_C,
                 '' AS ESTADO_RECAUDO,
                 '' AS OBSERV_RECA,
                 FM.ID_FACTURACION
@@ -1525,14 +1682,31 @@ class FileController extends Controller
                     if (count($query_recaudo) > 0) {
                         foreach ($query_recaudo as $row_recaudo) {
                             $obj = clone $row;
+
+                            $ano_c = (int)trim(substr($row_recaudo->FECHA_CREACION, 0, 4));
+                            $mes_c = (int)trim(substr($row_recaudo->FECHA_CREACION, 5, 2));
+                            $dia_c = (int)trim(substr($row_recaudo->FECHA_CREACION, 8, 2));
+                            $ano_b = (int)trim(substr($row_recaudo->FECHA_PAGO_BITACORA, 0, 4));
+                            $mes_b = (int)trim(substr($row_recaudo->FECHA_PAGO_BITACORA, 5, 2));
+                            $dia_b = (int)trim(substr($row_recaudo->FECHA_PAGO_BITACORA, 8, 2));
+
                             if ($sw == 0) {
                                 $obj->DEPARTAMENTO = $row->DEPARTAMENTO;
                                 $obj->MUNICIPIO = $row->MUNICIPIO;
                                 $obj->FACTURA = $row->FACTURA;
                                 $obj->VALOR_FACTURA = $row->VALOR_FACTURA;
                                 $obj->FECHA_FACTURA = $row->FECHA_FACTURA;
+                                $obj->DIA_F = $row->DIA_F;
+                                $obj->MES_F = $row->MES_F;
+                                $obj->ANO_F = $row->ANO_F;
                                 $obj->FECHA_ENTREGA = $row->FECHA_ENTREGA;
+                                $obj->DIA_E = $row->DIA_E;
+                                $obj->MES_E = $row->MES_E;
+                                $obj->ANO_E = $row->ANO_E;
                                 $obj->FECHA_VENCIMIENTO = $row->FECHA_VENCIMIENTO;
+                                $obj->DIA_V = $row->DIA_V;
+                                $obj->MES_V = $row->MES_V;
+                                $obj->ANO_V = $row->ANO_V;
                                 $obj->PERIODO = $row->PERIODO;
                                 switch ($stado_fact_id) {
                                     case "1":
@@ -1553,7 +1727,13 @@ class FileController extends Controller
                                 $obj->VALOR_RECAUDO = $row_recaudo->VALOR_RECAUDO;
                                 $obj->CC_VENCIDAS =  $row->CC_VENCIDAS;
                                 $obj->FECHA_PAGO_BITACORA = $row_recaudo->FECHA_PAGO_BITACORA;
+                                $obj->DIA_B = $dia_b;
+                                $obj->MES_B = $mes_b;
+                                $obj->ANO_B = $ano_b;
                                 $obj->FECHA_CREACION_BITACORA = $row_recaudo->FECHA_CREACION;
+                                $obj->DIA_C = $dia_c;
+                                $obj->MES_C = $mes_c;
+                                $obj->ANO_C = $ano_c;
                                 switch ($row_recaudo->ESTADO_RECAUDO) {
                                     case "1":
                                         $estado = "ENTREGADO";
@@ -1584,8 +1764,17 @@ class FileController extends Controller
                                 $obj->FACTURA = $row->FACTURA;
                                 $obj->VALOR_FACTURA = 0;
                                 $obj->FECHA_FACTURA = $row->FECHA_FACTURA;
+                                $obj->DIA_F = $row->DIA_F;
+                                $obj->MES_F = $row->MES_F;
+                                $obj->ANO_F = $row->ANO_F;
                                 $obj->FECHA_ENTREGA = $row->FECHA_ENTREGA;
+                                $obj->DIA_E = $row->DIA_E;
+                                $obj->MES_E = $row->MES_E;
+                                $obj->ANO_E = $row->ANO_E;
                                 $obj->FECHA_VENCIMIENTO = $row->FECHA_VENCIMIENTO;
+                                $obj->DIA_V = $row->DIA_V;
+                                $obj->MES_V = $row->MES_V;
+                                $obj->ANO_V = $row->ANO_V;
                                 $obj->PERIODO = $row->PERIODO;
                                 switch ($stado_fact_id) {
                                     case "1":
@@ -1606,7 +1795,13 @@ class FileController extends Controller
                                 $obj->VALOR_RECAUDO = $row_recaudo->VALOR_RECAUDO;
                                 $obj->CC_VENCIDAS = $row->CC_VENCIDAS;
                                 $obj->FECHA_PAGO_BITACORA = $row_recaudo->FECHA_PAGO_BITACORA;
+                                $obj->DIA_B = $dia_b;
+                                $obj->MES_B = $mes_b;
+                                $obj->ANO_B = $ano_b;
                                 $obj->FECHA_CREACION_BITACORA = $row_recaudo->FECHA_CREACION;
+                                $obj->DIA_C = $dia_c;
+                                $obj->MES_C = $mes_c;
+                                $obj->ANO_C = $ano_c;
                                 switch ($row_recaudo->ESTADO_RECAUDO) {
                                     case "1":
                                         $estado = "ENTREGADO";
@@ -1639,8 +1834,17 @@ class FileController extends Controller
                         $obj->FACTURA = $row->FACTURA;
                         $obj->VALOR_FACTURA = $row->VALOR_FACTURA;
                         $obj->FECHA_FACTURA = $row->FECHA_FACTURA;
+                        $obj->DIA_F = $row->DIA_F;
+                        $obj->MES_F = $row->MES_F;
+                        $obj->ANO_F = $row->ANO_F;
                         $obj->FECHA_ENTREGA = $row->FECHA_ENTREGA;
+                        $obj->DIA_E = $row->DIA_E;
+                        $obj->MES_E = $row->MES_E;
+                        $obj->ANO_E = $row->ANO_E;
                         $obj->FECHA_VENCIMIENTO = $row->FECHA_VENCIMIENTO;
+                        $obj->DIA_V = $row->DIA_V;
+                        $obj->MES_V = $row->MES_V;
+                        $obj->ANO_V = $row->ANO_V;
                         $obj->PERIODO = $row->PERIODO;
                         switch ($stado_fact_id) {
                             case "1":
@@ -1661,7 +1865,13 @@ class FileController extends Controller
                         $obj->VALOR_RECAUDO = 0;
                         $obj->CC_VENCIDAS = $row->CC_VENCIDAS;
                         $obj->FECHA_PAGO_BITACORA = '';
+                        $obj->DIA_B = '';
+                        $obj->MES_B = '';
+                        $obj->ANO_B = '';
                         $obj->FECHA_CREACION_BITACORA = '';
+                        $obj->DIA_C = '';
+                        $obj->MES_C = '';
+                        $obj->ANO_C = '';
                         $obj->ESTADO_RECAUDO = $estado;
                         $obj->OBSERV_RECA =  '';
                         $newData[] = $obj;
@@ -1679,10 +1889,13 @@ class FileController extends Controller
 
                 $data_head = [
                     'DEPARTAMENTO', 'MUNICIPIO', 'C. COBRO', 'VALOR C.C.',
-                    'FECHA C.C.', 'FECHA ENTREGA', 'FECHA VENCIMIENTO', 'PERIODO',
-                    'ESTADO C.C.', 'OBSERV. C.C.', 'VALOR RECAUDO', 'C.C. VENCIDAS',
-                    'FECHA RECA. BITACORA', 'FECHA CREACION RECA.', 'ESTADO RECAUDO',
-                    'OBSERV. RECAUDO'
+                    'FECHA C.C.', 'DIA', 'MES', 'AÑO',
+                    'FECHA ENTREGA', 'DIA', 'MES', 'AÑO',
+                    'FECHA VENCIMIENTO', 'DIA', 'MES', 'AÑO',
+                    'PERIODO', 'ESTADO C.C.', 'OBSERV. C.C.', 'VALOR RECAUDO', 'C.C. VENCIDAS',
+                    'FECHA RECA. BITACORA', 'DIA', 'MES', 'AÑO',
+                    'FECHA CREACION RECA.', 'DIA', 'MES', 'AÑO',
+                    'ESTADO RECAUDO', 'OBSERV. RECAUDO'
                 ];
                 // transform array to 2D array
                 $dataArray = json_decode(json_encode($newData), true);
@@ -1733,8 +1946,17 @@ class FileController extends Controller
                     FM.CONSECUTIVO_FACT AS FACTURA,
                     FM.VALOR_FACTURA AS VALOR_FACTURA,
                     FM.FECHA_FACTURA AS FECHA_FACTURA,
+                    DAY(FM.FECHA_FACTURA) AS DIA_F,
+                    MONTH(FM.FECHA_FACTURA) AS MES_F,
+                    YEAR(FM.FECHA_FACTURA) AS ANO_F,
                     FM.FECHA_ENTREGA AS FECHA_ENTREGA,
+                    DAY(FM.FECHA_ENTREGA) AS DIA_E,
+                    MONTH(FM.FECHA_ENTREGA) AS MES_E,
+                    YEAR(FM.FECHA_ENTREGA) AS ANO_E,
                     FM.FECHA_VENCIMIENTO AS FECHA_VENCIMIENTO,
+                    DAY(FM.FECHA_VENCIMIENTO) AS DIA_V,
+                    MONTH(FM.FECHA_VENCIMIENTO) AS MES_V,
+                    YEAR(FM.FECHA_VENCIMIENTO) AS ANO_V,
                     FM.PERIODO_FACTURA AS PERIODO,
                     FM.ESTADO_FACTURA AS ESTADO_FACT_ID,
                     '' AS ESTADO_FACTURA,
@@ -1742,7 +1964,13 @@ class FileController extends Controller
                     '' AS VALOR_RECAUDO,
                     FM.NO_CC_VENCIDAS AS CC_VENCIDAS,
                     '' AS FECHA_PAGO_BITACORA,
+                    '' AS DIA_B,
+                    '' AS MES_B,
+                    '' AS ANO_B,
                     '' AS FECHA_CREACION_BITACORA,
+                    '' AS DIA_C,
+                    '' AS MES_C,
+                    '' AS ANO_C,
                     '' AS ESTADO_RECAUDO,
                     '' AS OBSERV_RECA,
                     FM.ID_FACTURACION
@@ -1767,14 +1995,31 @@ class FileController extends Controller
                     if (count($query_recaudo) > 0) {
                         foreach ($query_recaudo as $row_recaudo) {
                             $obj = clone $row;
+
+                            $ano_c = (int)trim(substr($row_recaudo->FECHA_CREACION, 0, 4));
+                            $mes_c = (int)trim(substr($row_recaudo->FECHA_CREACION, 5, 2));
+                            $dia_c = (int)trim(substr($row_recaudo->FECHA_CREACION, 8, 2));
+                            $ano_b = (int)trim(substr($row_recaudo->FECHA_PAGO_BITACORA, 0, 4));
+                            $mes_b = (int)trim(substr($row_recaudo->FECHA_PAGO_BITACORA, 5, 2));
+                            $dia_b = (int)trim(substr($row_recaudo->FECHA_PAGO_BITACORA, 8, 2));
+
                             if ($sw == 0) {
                                 $obj->DEPARTAMENTO = $row->DEPARTAMENTO;
                                 $obj->MUNICIPIO = $row->MUNICIPIO;
                                 $obj->FACTURA = $row->FACTURA;
                                 $obj->VALOR_FACTURA = $row->VALOR_FACTURA;
                                 $obj->FECHA_FACTURA = $row->FECHA_FACTURA;
+                                $obj->DIA_F = $row->DIA_F;
+                                $obj->MES_F = $row->MES_F;
+                                $obj->ANO_F = $row->ANO_F;
                                 $obj->FECHA_ENTREGA = $row->FECHA_ENTREGA;
+                                $obj->DIA_E = $row->DIA_E;
+                                $obj->MES_E = $row->MES_E;
+                                $obj->ANO_E = $row->ANO_E;
                                 $obj->FECHA_VENCIMIENTO = $row->FECHA_VENCIMIENTO;
+                                $obj->DIA_V = $row->DIA_V;
+                                $obj->MES_V = $row->MES_V;
+                                $obj->ANO_V = $row->ANO_V;
                                 $obj->PERIODO = $row->PERIODO;
                                 switch ($stado_fact_id) {
                                     case "1":
@@ -1795,7 +2040,13 @@ class FileController extends Controller
                                 $obj->VALOR_RECAUDO = $row_recaudo->VALOR_RECAUDO;
                                 $obj->CC_VENCIDAS =  $row->CC_VENCIDAS;
                                 $obj->FECHA_PAGO_BITACORA = $row_recaudo->FECHA_PAGO_BITACORA;
+                                $obj->DIA_B = $dia_b;
+                                $obj->MES_B = $mes_b;
+                                $obj->ANO_B = $ano_b;
                                 $obj->FECHA_CREACION_BITACORA = $row_recaudo->FECHA_CREACION;
+                                $obj->DIA_C = $dia_c;
+                                $obj->MES_C = $mes_c;
+                                $obj->ANO_C = $ano_c;
                                 switch ($row_recaudo->ESTADO_RECAUDO) {
                                     case "1":
                                         $estado = "ENTREGADO";
@@ -1826,8 +2077,17 @@ class FileController extends Controller
                                 $obj->FACTURA = $row->FACTURA;
                                 $obj->VALOR_FACTURA = 0;
                                 $obj->FECHA_FACTURA = $row->FECHA_FACTURA;
+                                $obj->DIA_F = $row->DIA_F;
+                                $obj->MES_F = $row->MES_F;
+                                $obj->ANO_F = $row->ANO_F;
                                 $obj->FECHA_ENTREGA = $row->FECHA_ENTREGA;
+                                $obj->DIA_E = $row->DIA_E;
+                                $obj->MES_E = $row->MES_E;
+                                $obj->ANO_E = $row->ANO_E;
                                 $obj->FECHA_VENCIMIENTO = $row->FECHA_VENCIMIENTO;
+                                $obj->DIA_V = $row->DIA_V;
+                                $obj->MES_V = $row->MES_V;
+                                $obj->ANO_V = $row->ANO_V;
                                 $obj->PERIODO = $row->PERIODO;
                                 switch ($stado_fact_id) {
                                     case "1":
@@ -1848,7 +2108,13 @@ class FileController extends Controller
                                 $obj->VALOR_RECAUDO = $row_recaudo->VALOR_RECAUDO;
                                 $obj->CC_VENCIDAS = $row->CC_VENCIDAS;
                                 $obj->FECHA_PAGO_BITACORA = $row_recaudo->FECHA_PAGO_BITACORA;
+                                $obj->DIA_B = $dia_b;
+                                $obj->MES_B = $mes_b;
+                                $obj->ANO_B = $ano_b;
                                 $obj->FECHA_CREACION_BITACORA = $row_recaudo->FECHA_CREACION;
+                                $obj->DIA_C = $dia_c;
+                                $obj->MES_C = $mes_c;
+                                $obj->ANO_C = $ano_c;
                                 switch ($row_recaudo->ESTADO_RECAUDO) {
                                     case "1":
                                         $estado = "ENTREGADO";
@@ -1881,8 +2147,17 @@ class FileController extends Controller
                         $obj->FACTURA = $row->FACTURA;
                         $obj->VALOR_FACTURA = $row->VALOR_FACTURA;
                         $obj->FECHA_FACTURA = $row->FECHA_FACTURA;
+                        $obj->DIA_F = $row->DIA_F;
+                        $obj->MES_F = $row->MES_F;
+                        $obj->ANO_F = $row->ANO_F;
                         $obj->FECHA_ENTREGA = $row->FECHA_ENTREGA;
+                        $obj->DIA_E = $row->DIA_E;
+                        $obj->MES_E = $row->MES_E;
+                        $obj->ANO_E = $row->ANO_E;
                         $obj->FECHA_VENCIMIENTO = $row->FECHA_VENCIMIENTO;
+                        $obj->DIA_V = $row->DIA_V;
+                        $obj->MES_V = $row->MES_V;
+                        $obj->ANO_V = $row->ANO_V;
                         $obj->PERIODO = $row->PERIODO;
                         switch ($stado_fact_id) {
                             case "1":
@@ -1903,7 +2178,13 @@ class FileController extends Controller
                         $obj->VALOR_RECAUDO = 0;
                         $obj->CC_VENCIDAS = $row->CC_VENCIDAS;
                         $obj->FECHA_PAGO_BITACORA = '';
+                        $obj->DIA_B = '';
+                        $obj->MES_B = '';
+                        $obj->ANO_B = '';
                         $obj->FECHA_CREACION_BITACORA = '';
+                        $obj->DIA_C = '';
+                        $obj->MES_C = '';
+                        $obj->ANO_C = '';
                         $obj->ESTADO_RECAUDO = $estado;
                         $obj->OBSERV_RECA =  '';
                         $newData[] = $obj;
@@ -1920,10 +2201,13 @@ class FileController extends Controller
 
                 $data_head = [
                     'DEPARTAMENTO', 'MUNICIPIO', 'C. COBRO', 'VALOR C.C.',
-                    'FECHA C.C.', 'FECHA ENTREGA', 'FECHA VENCIMIENTO', 'PERIODO',
-                    'ESTADO C.C.', 'OBSERV. C.C.', 'VALOR RECAUDO', 'C.C. VENCIDAS',
-                    'FECHA RECA. BITACORA', 'FECHA CREACION RECA.', 'ESTADO RECAUDO',
-                    'OBSERV. RECAUDO'
+                    'FECHA C.C.', 'DIA', 'MES', 'AÑO',
+                    'FECHA ENTREGA', 'DIA', 'MES', 'AÑO',
+                    'FECHA VENCIMIENTO', 'DIA', 'MES', 'AÑO',
+                    'PERIODO', 'ESTADO C.C.', 'OBSERV. C.C.', 'VALOR RECAUDO', 'C.C. VENCIDAS',
+                    'FECHA RECA. BITACORA', 'DIA', 'MES', 'AÑO',
+                    'FECHA CREACION RECA.', 'DIA', 'MES', 'AÑO',
+                    'ESTADO RECAUDO', 'OBSERV. RECAUDO'
                 ];
                 // transform array to 2D array
                 $dataArray = json_decode(json_encode($newData), true);
